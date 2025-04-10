@@ -26,7 +26,7 @@ const Index = () => {
                   </Button>
                 </Link>
                 <Link to="/login">
-                  <Button variant="outline" className="border-white text-white hover:bg-white/10">
+                  <Button variant="transparent" className="text-white hover:bg-white/10">
                     Login
                   </Button>
                 </Link>
@@ -112,7 +112,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/certificate-verification">
-              <Button variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button variant="transparent" className="text-white hover:bg-white/10">
                 Verify Certificate
               </Button>
             </Link>

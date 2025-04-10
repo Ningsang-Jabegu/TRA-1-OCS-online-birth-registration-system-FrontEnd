@@ -17,6 +17,7 @@ interface AuthContextProps {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isGuest: boolean; // Add isGuest property to fix error in BirthRegistration.tsx
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
   logout: () => void;
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextProps>({
   user: null,
   isAuthenticated: false,
   isAdmin: false,
+  isGuest: false, // Initialize isGuest property
   login: async () => false,
   register: async () => false,
   logout: () => {},
@@ -41,8 +43,19 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Modify the type of mockUsers array to fix the optional phone and address properties
+type MockUser = {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  phone?: string;
+  address?: string;
+};
+
 // Mock user database
-const mockUsers = [
+const mockUsers: MockUser[] = [
   {
     id: "admin-123",
     name: "Administrator",
@@ -207,7 +220,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userIndex = mockUsers.findIndex((u) => u.id === user.id);
       if (userIndex !== -1) {
         const { password } = mockUsers[userIndex];
-        mockUsers[userIndex] = { ...newUserData, password };
+        // Using the fixed type here
+        mockUsers[userIndex] = { 
+          ...newUserData, 
+          password 
+        } as MockUser;
       }
       
       // Update local state and storage
@@ -242,6 +259,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   
   const isAuthenticated = !!user;
   const isAdmin = !!user && user.role === "Administrator";
+  const isGuest = !!user && user.role === "Guest"; // Add isGuest calculation
   
   return (
     <AuthContext.Provider
@@ -249,6 +267,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         isAuthenticated,
         isAdmin,
+        isGuest, // Include isGuest in the context value
         login,
         register,
         logout,

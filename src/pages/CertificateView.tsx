@@ -101,17 +101,17 @@ const CertificateView = () => {
       watermarkDiv.style.flexWrap = 'wrap';
       watermarkDiv.style.justifyContent = 'center';
       watermarkDiv.style.alignItems = 'center';
-      watermarkDiv.style.opacity = '0.07';
+      watermarkDiv.style.opacity = '0.4'; // Increased opacity for watermark
       watermarkDiv.style.pointerEvents = 'none';
       watermarkDiv.style.zIndex = '1';
       watermarkDiv.style.transform = 'rotate(-45deg)';
       
       // Repeat watermark text
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 100; i++) { // Increased number of watermark elements
         const watermarkText = document.createElement('div');
         watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
-        watermarkText.style.margin = '30px';
-        watermarkText.style.fontSize = '12px';
+        watermarkText.style.margin = '20px';
+        watermarkText.style.fontSize = '10px';
         watermarkText.style.color = '#000';
         watermarkDiv.appendChild(watermarkText);
       }
@@ -167,16 +167,18 @@ const CertificateView = () => {
   const handlePrint = () => {
     if (!certificateRef.current) return;
     
-    const originalContent = document.body.innerHTML;
-    
-    // Create print-specific content
+    // Create print-specific content with watermark
     const printContent = document.createElement('div');
     printContent.style.width = '210mm';
+    printContent.style.height = '297mm';
     printContent.style.margin = '0 auto';
     printContent.style.position = 'relative';
+    printContent.style.overflow = 'hidden';
+    printContent.style.backgroundColor = 'white';
     
-    // Add watermark for printing
+    // Add watermark for printing with higher density
     const watermarkDiv = document.createElement('div');
+    watermarkDiv.className = 'certificate-watermark';
     watermarkDiv.style.position = 'absolute';
     watermarkDiv.style.top = '0';
     watermarkDiv.style.left = '0';
@@ -186,27 +188,30 @@ const CertificateView = () => {
     watermarkDiv.style.flexWrap = 'wrap';
     watermarkDiv.style.justifyContent = 'center';
     watermarkDiv.style.alignItems = 'center';
-    watermarkDiv.style.opacity = '0.07';
+    watermarkDiv.style.opacity = '0.4'; // Increased opacity for better visibility
     watermarkDiv.style.pointerEvents = 'none';
     watermarkDiv.style.zIndex = '1';
     watermarkDiv.style.transform = 'rotate(-45deg)';
     
-    // Repeat watermark text
-    for (let i = 0; i < 20; i++) {
+    // Add many more watermark texts to fill the page completely
+    for (let i = 0; i < 200; i++) {
       const watermarkText = document.createElement('div');
       watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
-      watermarkText.style.margin = '30px';
-      watermarkText.style.fontSize = '12px';
+      watermarkText.style.margin = '15px';
+      watermarkText.style.fontSize = '10px';
       watermarkText.style.color = '#000';
+      watermarkText.style.whiteSpace = 'nowrap';
       watermarkDiv.appendChild(watermarkText);
     }
     
     // Clone the certificate for printing
     const certificateClone = certificateRef.current.cloneNode(true) as HTMLElement;
+    certificateClone.className = 'certificate-container';
     certificateClone.style.position = 'relative';
     certificateClone.style.zIndex = '2';
-    certificateClone.style.padding = '20px';
+    certificateClone.style.padding = '20mm';
     certificateClone.style.backgroundColor = 'white';
+    certificateClone.style.boxSizing = 'border-box';
     
     // Remove any non-printable elements
     const nonPrintableElements = certificateClone.querySelectorAll('.print\\:hidden');
@@ -214,6 +219,7 @@ const CertificateView = () => {
       el.parentNode?.removeChild(el);
     });
     
+    // Add to print container
     printContent.appendChild(watermarkDiv);
     printContent.appendChild(certificateClone);
     
@@ -228,24 +234,76 @@ const CertificateView = () => {
         margin: 0;
         padding: 0;
         background: white;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      .certificate-container {
+        width: 210mm;
+        height: 297mm;
+        padding: 20mm;
+        box-sizing: border-box;
+        page-break-after: always;
+        background-color: white !important;
+      }
+      .certificate-body {
+        border: 2px solid #ddd !important;
+        padding: 1.5rem !important;
+        background-color: white !important;
+      }
+      .certificate-field {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        margin-bottom: 0.5rem !important;
+      }
+      .certificate-label {
+        font-weight: 600 !important;
+        text-align: right !important;
+      }
+      .certificate-value {
+        border-bottom: 1px dashed #666 !important;
+        text-align: left !important;
+      }
+      .certificate-watermark {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0.4 !important;
+        z-index: 1 !important;
+        pointer-events: none !important;
+      }
+      .signature-box {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+      .handwriting {
+        font-family: 'Dancing Script', cursive !important;
       }
     `;
-    printContent.appendChild(style);
     
-    // Replace body content and print
+    // Open a new window and write the content
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.open();
-      printWindow.document.write('<html><head><title>Print Certificate</title></head><body>');
+      printWindow.document.write('<!DOCTYPE html><html><head><title>Print Certificate</title>');
+      printWindow.document.write('<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600&display=swap" rel="stylesheet">');
+      printWindow.document.write('</head><body>');
+      printWindow.document.write(style.outerHTML);
       printWindow.document.write(printContent.outerHTML);
       printWindow.document.write('</body></html>');
       printWindow.document.close();
       
+      // Wait for resources to load before printing
       printWindow.onload = function() {
-        printWindow.print();
-        printWindow.onafterprint = function() {
-          printWindow.close();
-        };
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.onafterprint = function() {
+            printWindow.close();
+          };
+        }, 500);
       };
     } else {
       toast({
@@ -415,11 +473,7 @@ const CertificateView = () => {
                   <div className="certificate-footer flex justify-between mt-12 pt-6 border-t border-dashed border-gray-300">
                     <div className="signature-box">
                       <div className="border-b border-black min-w-[200px] h-16 flex items-end justify-center">
-                        <img 
-                          src="/lovable-uploads/cc75b3ec-19ed-44b6-b6bb-a86e7d69b319.png" 
-                          alt="Applicant's Signature" 
-                          className="h-14 mb-1"
-                        />
+                        <p className="handwriting text-xl mb-1">Raj Kumar Sharma</p>
                       </div>
                       <p className="text-sm mt-2">Applicant's Signature</p>
                     </div>

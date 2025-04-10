@@ -104,7 +104,7 @@ const Login = () => {
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
                     <Link
-                      to="#"
+                      to="/forgot-password"
                       className="text-xs text-nepal-blue hover:underline"
                     >
                       Forgot password?
@@ -123,7 +123,7 @@ const Login = () => {
                 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-nepal-blue hover:bg-blue-800"
                   disabled={loading}
                 >
                   {loading ? "Signing in..." : "Sign in"}

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import MainLayout from "@/components/layouts/MainLayout";
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Download, ArrowLeft, Printer } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Mock certificate data
 interface Certificate {
@@ -38,6 +40,7 @@ const CertificateView = () => {
   const { isAuthenticated } = useAuth();
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [loading, setLoading] = useState(true);
+  const certificateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Simulate fetching certificate data
@@ -68,12 +71,48 @@ const CertificateView = () => {
     }, 1000);
   }, [id]);
 
-  const handleDownload = () => {
-    // In a real app, this would download the certificate
-    toast({
-      title: "Certificate Download",
-      description: "Your certificate is being prepared for download.",
-    });
+  const handleDownload = async () => {
+    if (!certificate || !certificateRef.current) return;
+    
+    try {
+      toast({
+        title: "Preparing Download",
+        description: "Your certificate is being prepared for download...",
+      });
+      
+      const certificateElement = certificateRef.current;
+      const canvas = await html2canvas(certificateElement, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 30;
+      
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(`Birth Registration Certificate - ${certificate.childName}.pdf`);
+      
+      toast({
+        title: "Download Complete",
+        description: "Your certificate has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "There was an error generating your certificate. Please try again.",
+      });
+    }
   };
 
   const handlePrint = () => {
@@ -83,7 +122,7 @@ const CertificateView = () => {
   return (
     <MainLayout>
       <div className="container mx-auto py-8 px-4">
-        <div className="mb-6 flex items-center">
+        <div className="mb-6 flex items-center print:hidden">
           <Link to="/dashboard">
             <Button variant="outline" size="sm" className="mr-2">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -120,7 +159,7 @@ const CertificateView = () => {
           <div className="max-w-4xl mx-auto">
             <Card className="shadow-lg print:shadow-none print:border-none">
               <CardContent className="p-8 print:p-0">
-                <div className="certificate-container">
+                <div className="certificate-container" ref={certificateRef}>
                   <div className="text-center mb-8">
                     <div className="flex justify-center mb-4">
                       <img

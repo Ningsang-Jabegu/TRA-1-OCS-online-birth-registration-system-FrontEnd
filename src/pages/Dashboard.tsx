@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import MainLayout from "@/components/layouts/MainLayout";
-import BilingualHeader from "@/components/BilingualHeader";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,44 +13,57 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Download, Eye } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import {
+  FileText,
+  Plus,
+  Download,
+  ClipboardList,
+  Eye,
+  Search,
+  User,
+} from "lucide-react";
+import { format } from "date-fns";
 
-// Mock data for birth certificates
 interface BirthRecord {
   id: string;
   childName: string;
   dateOfBirth: string;
-  parentName: string;
-  registrationDate: string;
-  status: "approved" | "pending" | "rejected";
+  gender: string;
+  status: "pending" | "approved" | "rejected";
+  certificateUrl?: string;
 }
 
 const Dashboard = () => {
-  const { user, isAdmin, isCitizen, isGuest } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [records, setRecords] = useState<BirthRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching records
+    // Simulate fetching birth records
     setTimeout(() => {
-      // Mock data - in a real app, this would come from an API
       const mockRecords: BirthRecord[] = [
         {
-          id: "BC-2023-001",
-          childName: "Arun Sharma",
-          dateOfBirth: "2023-03-15",
-          parentName: "Raj Sharma",
-          registrationDate: "2023-03-20",
+          id: "BR001",
+          childName: "Arjun Kumar Sharma",
+          dateOfBirth: "2023-05-15",
+          gender: "Male",
           status: "approved",
+          certificateUrl: "/certificate/BC-2023-001",
         },
         {
-          id: "BC-2023-002",
-          childName: "Sunita Gurung",
-          dateOfBirth: "2023-04-10",
-          parentName: "Mina Gurung",
-          registrationDate: "2023-04-12",
+          id: "BR002",
+          childName: "Maya Rai",
+          dateOfBirth: "2023-06-22",
+          gender: "Female",
           status: "pending",
+        },
+        {
+          id: "BR003",
+          childName: "Rajesh Tamang",
+          dateOfBirth: "2023-07-10",
+          gender: "Male",
+          status: "approved",
+          certificateUrl: "/certificate/BC-2023-002",
         },
       ];
       
@@ -60,221 +72,223 @@ const Dashboard = () => {
     }, 1000);
   }, []);
 
-  const handleDownloadCertificate = (id: string) => {
-    // In a real app, this would download the certificate
-    toast({
-      title: "Certificate Download",
-      description: `Certificate ${id} is being prepared for download.`,
-    });
-  };
+  const pendingRecords = records.filter(record => record.status === "pending");
+  const approvedRecords = records.filter(record => record.status === "approved");
 
   return (
     <MainLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-8">
-          <BilingualHeader
-            englishTitle="Dashboard"
-            nepaliTitle="ड्यासबोर्ड"
-            subtitle={`Welcome, ${user?.name || "User"}`}
-          />
+      <div className="container mx-auto py-8 px-4 md:px-6">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-gray-600">
+              Welcome back, {user?.name || "User"}!
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link to="/profile/update">
+              <Button variant="outline" size="sm">
+                <User className="mr-2 h-4 w-4" />
+                Update Profile
+              </Button>
+            </Link>
+            {user?.role !== "Guest" && (
+              <Link to="/birth-registration">
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Register Birth
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
-        {isGuest ? (
-          <div className="mt-8 text-center">
-            <Card>
-              <CardHeader>
-                <CardTitle>Guest Access</CardTitle>
-                <CardDescription>
-                  As a guest, you can view the system's features but cannot register births or
-                  generate certificates.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">
-                  Upgrade to a Citizen account to access full functionality or
-                  contact an administrator for assistance.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/">
-                    <Button variant="outline">
-                      <Eye className="mr-2 h-4 w-4" />
-                      View System Features
-                    </Button>
-                  </Link>
-                  <Link to="/login">
-                    <Button>
-                      Switch Account
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <Tabs defaultValue="birth-records" className="space-y-8">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-              <TabsTrigger value="birth-records">Birth Records</TabsTrigger>
-              <TabsTrigger value="account">Account</TabsTrigger>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Registrations
+              </CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{records.length}</div>
+              <p className="text-xs text-muted-foreground">
+                All registered births
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pending Approvals
+              </CardTitle>
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingRecords.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Awaiting verification
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Approved Certificates
+              </CardTitle>
+              <Download className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{approvedRecords.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Ready for download
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="all">All Records</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="approved">Approved</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="birth-records">
-              <div className="mb-6 flex justify-between items-center">
-                <h2 className="text-2xl font-semibold">Your Birth Records</h2>
-                {isCitizen && (
-                  <Link to="/birth-registration">
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Register New Birth
-                    </Button>
-                  </Link>
-                )}
-                {isAdmin && (
-                  <Link to="/admin">
-                    <Button>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Admin Dashboard
-                    </Button>
-                  </Link>
-                )}
-              </div>
-
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i} className="animate-pulse">
-                      <CardHeader className="pb-2">
-                        <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="h-4 bg-gray-200 rounded"></div>
-                          <div className="h-4 bg-gray-200 rounded"></div>
-                          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <div className="h-10 bg-gray-200 rounded w-full"></div>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : records.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {records.map((record) => (
-                    <Card key={record.id}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-xl">{record.childName}</CardTitle>
-                        <CardDescription>ID: {record.id}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm">
-                          <p>
-                            <span className="font-medium">Date of Birth:</span>{" "}
-                            {new Date(record.dateOfBirth).toLocaleDateString()}
-                          </p>
-                          <p>
-                            <span className="font-medium">Parent:</span> {record.parentName}
-                          </p>
-                          <p>
-                            <span className="font-medium">Registered:</span>{" "}
-                            {new Date(record.registrationDate).toLocaleDateString()}
-                          </p>
-                          <p>
-                            <span className="font-medium">Status:</span>{" "}
-                            <span
-                              className={`font-semibold ${
-                                record.status === "approved"
-                                  ? "text-green-600"
-                                  : record.status === "pending"
-                                  ? "text-amber-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                            </span>
-                          </p>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <Link to={`/certificate/${record.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Button>
-                        </Link>
-                        {record.status === "approved" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleDownloadCertificate(record.id)}
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <Card className="w-full text-center py-8">
-                  <CardContent>
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Birth Records Found</h3>
-                    <p className="text-gray-500 mb-6">
-                      You haven't registered any births yet. Start by registering a new birth.
-                    </p>
-                    {isCitizen && (
-                      <Link to="/birth-registration">
-                        <Button>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Register New Birth
-                        </Button>
-                      </Link>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+            
+            <TabsContent value="all">
+              <RecordsList 
+                records={records}
+                loading={loading} 
+                userRole={user?.role || "Guest"} 
+              />
             </TabsContent>
-
-            <TabsContent value="account">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Information</CardTitle>
-                  <CardDescription>
-                    View and manage your account details
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
-                      <p className="text-base">{user?.name}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Email</h3>
-                      <p className="text-base">{user?.email}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Account Type</h3>
-                      <p className="text-base">{user?.role}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Account ID</h3>
-                      <p className="text-base">{user?.id}</p>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button variant="outline">Update Profile</Button>
-                </CardFooter>
-              </Card>
+            
+            <TabsContent value="pending">
+              <RecordsList 
+                records={pendingRecords}
+                loading={loading} 
+                userRole={user?.role || "Guest"} 
+              />
+            </TabsContent>
+            
+            <TabsContent value="approved">
+              <RecordsList 
+                records={approvedRecords}
+                loading={loading} 
+                userRole={user?.role || "Guest"} 
+              />
             </TabsContent>
           </Tabs>
-        )}
+        </div>
+        
+        <div className="mt-8">
+          <Link to="/certificate-verification">
+            <Button variant="outline" className="w-full">
+              <Search className="mr-2 h-4 w-4" />
+              Quick Certificate Verification
+            </Button>
+          </Link>
+        </div>
       </div>
     </MainLayout>
   );
+};
+
+interface RecordsListProps {
+  records: BirthRecord[];
+  loading: boolean;
+  userRole: UserRole;
+}
+
+const RecordsList = ({ records, loading, userRole }: RecordsListProps) => {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-gray-100 p-4 rounded animate-pulse h-16">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2 mt-2"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (records.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No records found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b text-left">
+            <th className="pb-2 font-medium">ID</th>
+            <th className="pb-2 font-medium">Child Name</th>
+            <th className="pb-2 font-medium">Date of Birth</th>
+            <th className="pb-2 font-medium">Gender</th>
+            <th className="pb-2 font-medium">Status</th>
+            <th className="pb-2 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id} className="border-b">
+              <td className="py-4">{record.id}</td>
+              <td className="py-4">{record.childName}</td>
+              <td className="py-4">{format(new Date(record.dateOfBirth), "dd MMM yyyy")}</td>
+              <td className="py-4">{record.gender}</td>
+              <td className="py-4">
+                <StatusBadge status={record.status} />
+              </td>
+              <td className="py-4 text-right">
+                <div className="flex justify-end gap-2">
+                  {record.status === "approved" && record.certificateUrl && (
+                    <Link to={record.certificateUrl}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="mr-2 h-3 w-3" />
+                        View
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  switch (status) {
+    case "approved":
+      return (
+        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+          Approved
+        </span>
+      );
+    case "pending":
+      return (
+        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+          Pending
+        </span>
+      );
+    case "rejected":
+      return (
+        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          Rejected
+        </span>
+      );
+    default:
+      return null;
+  }
 };
 
 export default Dashboard;

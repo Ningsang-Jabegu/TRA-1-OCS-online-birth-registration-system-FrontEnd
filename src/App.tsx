@@ -14,6 +14,9 @@ import CertificateView from "./pages/CertificateView";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import ForgotPassword from "./pages/ForgotPassword";
+import ProfileUpdate from "./pages/ProfileUpdate";
+import CertificateVerification from "./pages/CertificateVerification";
 
 const queryClient = new QueryClient();
 
@@ -28,11 +31,21 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/certificate-verification" element={<CertificateVerification />} />
             <Route 
               path="/dashboard" 
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile/update" 
+              element={
+                <ProtectedRoute>
+                  <ProfileUpdate />
                 </ProtectedRoute>
               } 
             />

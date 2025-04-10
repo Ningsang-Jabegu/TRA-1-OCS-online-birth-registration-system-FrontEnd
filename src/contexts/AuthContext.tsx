@@ -1,5 +1,5 @@
 
-import { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { toast } from "@/components/ui/use-toast";
 
 export type UserRole = "Administrator" | "Citizen" | "Guest";

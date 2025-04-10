@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,18 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Nepal-inspired colors
+				nepal: {
+					red: '#C8102E',
+					blue: '#1C49A0',
+					green: '#006400',
+					accent: '#FFD700'
 				}
+			},
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+				nepali: ['Poppins', 'sans-serif'],
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

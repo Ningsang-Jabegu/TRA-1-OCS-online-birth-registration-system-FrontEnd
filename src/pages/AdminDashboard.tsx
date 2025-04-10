@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import MainLayout from "@/components/layouts/MainLayout";
 import BilingualHeader from "@/components/BilingualHeader";
@@ -50,8 +50,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, Eye, MoreHorizontal, Search, X } from "lucide-react";
+import { 
+  Check, 
+  Eye, 
+  MoreHorizontal, 
+  Search, 
+  X, 
+  FileText, 
+  Users, 
+  FileBarChart 
+} from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import {
+  ResponsiveContainer,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  Bar
+} from "recharts";
 
 // Mock data for birth records
 interface BirthRecord {

@@ -12,7 +12,7 @@ import { DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHead
 
 const CertificateVerification = () => {
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const [certificateNumber, setCertificateNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [loading, setLoading] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
@@ -41,7 +41,7 @@ const CertificateVerification = () => {
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!lastName || !email || !dateOfBirth) {
+    if (!lastName || !certificateNumber || !dateOfBirth) {
       toast({
         variant: "destructive",
         title: "Missing Fields",
@@ -54,7 +54,7 @@ const CertificateVerification = () => {
     
     // In a real app, this would call an API to verify the certificate
     setTimeout(() => {
-      if (lastName.toLowerCase().includes("sharma") && dateOfBirth === "2023-05-15") {
+      if (lastName.toLowerCase().includes("sharma") && (certificateNumber === "KTM-2023-12345" || certificateNumber === "12345")) {
         setShowVerification(true);
         toast({
           title: "Certificate Verified",
@@ -106,13 +106,13 @@ const CertificateVerification = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Registered Email</Label>
+                  <Label htmlFor="certificateNumber">Certificate Number</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="certificateNumber"
+                    type="text"
+                    placeholder="e.g. KTM-2023-12345"
+                    value={certificateNumber}
+                    onChange={(e) => setCertificateNumber(e.target.value)}
                     disabled={loading}
                     required
                   />

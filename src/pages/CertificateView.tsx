@@ -81,12 +81,61 @@ const CertificateView = () => {
       });
       
       const certificateElement = certificateRef.current;
-      const canvas = await html2canvas(certificateElement, {
+      
+      // Create a temporary wrapper with watermark for PDF generation
+      const tempWrapper = document.createElement('div');
+      tempWrapper.style.position = 'relative';
+      tempWrapper.style.width = '210mm'; // A4 width
+      tempWrapper.style.height = '297mm'; // A4 height
+      tempWrapper.style.padding = '20mm';
+      tempWrapper.style.backgroundColor = 'white';
+      
+      // Add watermark pattern
+      const watermarkDiv = document.createElement('div');
+      watermarkDiv.style.position = 'absolute';
+      watermarkDiv.style.top = '0';
+      watermarkDiv.style.left = '0';
+      watermarkDiv.style.width = '100%';
+      watermarkDiv.style.height = '100%';
+      watermarkDiv.style.display = 'flex';
+      watermarkDiv.style.flexWrap = 'wrap';
+      watermarkDiv.style.justifyContent = 'center';
+      watermarkDiv.style.alignItems = 'center';
+      watermarkDiv.style.opacity = '0.07';
+      watermarkDiv.style.pointerEvents = 'none';
+      watermarkDiv.style.zIndex = '1';
+      watermarkDiv.style.transform = 'rotate(-45deg)';
+      
+      // Repeat watermark text
+      for (let i = 0; i < 20; i++) {
+        const watermarkText = document.createElement('div');
+        watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
+        watermarkText.style.margin = '30px';
+        watermarkText.style.fontSize = '12px';
+        watermarkText.style.color = '#000';
+        watermarkDiv.appendChild(watermarkText);
+      }
+      
+      // Clone the certificate for PDF
+      const certificateClone = certificateElement.cloneNode(true) as HTMLElement;
+      certificateClone.style.position = 'relative';
+      certificateClone.style.zIndex = '2';
+      
+      // Add to wrapper
+      tempWrapper.appendChild(watermarkDiv);
+      tempWrapper.appendChild(certificateClone);
+      document.body.appendChild(tempWrapper);
+      
+      // Generate PDF
+      const canvas = await html2canvas(tempWrapper, {
         scale: 2,
         logging: false,
         useCORS: true,
         backgroundColor: '#ffffff'
       });
+      
+      // Remove temporary elements
+      document.body.removeChild(tempWrapper);
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -95,10 +144,10 @@ const CertificateView = () => {
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
       const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 30;
+      const imgX = 0;
+      const imgY = 0;
       
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.addImage(imgData, 'PNG', imgX, imgY, pdfWidth, pdfHeight);
       pdf.save(`Birth Registration Certificate - ${certificate.childName}.pdf`);
       
       toast({
@@ -116,7 +165,95 @@ const CertificateView = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!certificateRef.current) return;
+    
+    const originalContent = document.body.innerHTML;
+    
+    // Create print-specific content
+    const printContent = document.createElement('div');
+    printContent.style.width = '210mm';
+    printContent.style.margin = '0 auto';
+    printContent.style.position = 'relative';
+    
+    // Add watermark for printing
+    const watermarkDiv = document.createElement('div');
+    watermarkDiv.style.position = 'absolute';
+    watermarkDiv.style.top = '0';
+    watermarkDiv.style.left = '0';
+    watermarkDiv.style.width = '100%';
+    watermarkDiv.style.height = '100%';
+    watermarkDiv.style.display = 'flex';
+    watermarkDiv.style.flexWrap = 'wrap';
+    watermarkDiv.style.justifyContent = 'center';
+    watermarkDiv.style.alignItems = 'center';
+    watermarkDiv.style.opacity = '0.07';
+    watermarkDiv.style.pointerEvents = 'none';
+    watermarkDiv.style.zIndex = '1';
+    watermarkDiv.style.transform = 'rotate(-45deg)';
+    
+    // Repeat watermark text
+    for (let i = 0; i < 20; i++) {
+      const watermarkText = document.createElement('div');
+      watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
+      watermarkText.style.margin = '30px';
+      watermarkText.style.fontSize = '12px';
+      watermarkText.style.color = '#000';
+      watermarkDiv.appendChild(watermarkText);
+    }
+    
+    // Clone the certificate for printing
+    const certificateClone = certificateRef.current.cloneNode(true) as HTMLElement;
+    certificateClone.style.position = 'relative';
+    certificateClone.style.zIndex = '2';
+    certificateClone.style.padding = '20px';
+    certificateClone.style.backgroundColor = 'white';
+    
+    // Remove any non-printable elements
+    const nonPrintableElements = certificateClone.querySelectorAll('.print\\:hidden');
+    nonPrintableElements.forEach(el => {
+      el.parentNode?.removeChild(el);
+    });
+    
+    printContent.appendChild(watermarkDiv);
+    printContent.appendChild(certificateClone);
+    
+    // Add print-specific styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: white;
+      }
+    `;
+    printContent.appendChild(style);
+    
+    // Replace body content and print
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write('<html><head><title>Print Certificate</title></head><body>');
+      printWindow.document.write(printContent.outerHTML);
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      
+      printWindow.onload = function() {
+        printWindow.print();
+        printWindow.onafterprint = function() {
+          printWindow.close();
+        };
+      };
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Print Failed",
+        description: "Unable to open print window. Please check your browser settings.",
+      });
+    }
   };
 
   return (
@@ -277,12 +414,24 @@ const CertificateView = () => {
                   
                   <div className="certificate-footer flex justify-between mt-12 pt-6 border-t border-dashed border-gray-300">
                     <div className="signature-box">
-                      <div className="border-b border-black min-w-[200px] h-16"></div>
+                      <div className="border-b border-black min-w-[200px] h-16 flex items-end justify-center">
+                        <img 
+                          src="/lovable-uploads/cc75b3ec-19ed-44b6-b6bb-a86e7d69b319.png" 
+                          alt="Applicant's Signature" 
+                          className="h-14 mb-1"
+                        />
+                      </div>
                       <p className="text-sm mt-2">Applicant's Signature</p>
                     </div>
                     
                     <div className="signature-box text-right">
-                      <div className="border-b border-black min-w-[200px] h-16"></div>
+                      <div className="border-b border-black min-w-[200px] h-16 flex items-end justify-center">
+                        <img 
+                          src="/lovable-uploads/cc75b3ec-19ed-44b6-b6bb-a86e7d69b319.png" 
+                          alt="Authorized Signature" 
+                          className="h-14 mb-1"
+                        />
+                      </div>
                       <p className="text-sm mt-2">Authorized Signature</p>
                       <p className="text-sm">{certificate.issuedBy}</p>
                       <p className="text-sm">

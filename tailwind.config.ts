@@ -74,6 +74,7 @@ export default {
 			fontFamily: {
 				sans: ['Inter', 'sans-serif'],
 				nepali: ['Poppins', 'sans-serif'],
+				handwriting: ['"Dancing Script"', 'cursive'],
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

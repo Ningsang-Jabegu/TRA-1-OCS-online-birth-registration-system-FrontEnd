@@ -151,8 +151,8 @@
   }
   
   body {
-    margin: 0;
-    padding: 0;
+    margin: 0 !important;
+    padding: 0 !important;
     background-color: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -160,10 +160,10 @@
   }
   
   .certificate-container {
-    padding: 20mm;
-    width: 210mm;
-    height: 297mm;
-    page-break-after: always;
+    padding: 20mm !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    page-break-after: always !important;
     background-color: white !important;
     color: black !important;
     position: relative !important;
@@ -218,10 +218,17 @@
     z-index: 0 !important;
     opacity: 0.4 !important;
     display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: center !important;
-    transform: rotate(-45deg) !important;
+    flex-direction: column !important;
+    justify-content: space-around !important;
+  }
+  
+  .certificate-watermark div {
+    display: flex !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    line-height: 0.8rem !important;
+    font-size: 8px !important;
+    color: #555 !important;
   }
   
   .handwriting {

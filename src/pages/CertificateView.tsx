@@ -90,7 +90,7 @@ const CertificateView = () => {
       tempWrapper.style.padding = '20mm';
       tempWrapper.style.backgroundColor = 'white';
       
-      // Add watermark pattern
+      // Add watermark pattern - updated to be horizontal with reduced line height
       const watermarkDiv = document.createElement('div');
       watermarkDiv.style.position = 'absolute';
       watermarkDiv.style.top = '0';
@@ -98,22 +98,32 @@ const CertificateView = () => {
       watermarkDiv.style.width = '100%';
       watermarkDiv.style.height = '100%';
       watermarkDiv.style.display = 'flex';
-      watermarkDiv.style.flexWrap = 'wrap';
-      watermarkDiv.style.justifyContent = 'center';
-      watermarkDiv.style.alignItems = 'center';
-      watermarkDiv.style.opacity = '0.4'; // Increased opacity for watermark
+      watermarkDiv.style.flexDirection = 'column';
+      watermarkDiv.style.justifyContent = 'space-around';
+      watermarkDiv.style.opacity = '0.4';
       watermarkDiv.style.pointerEvents = 'none';
       watermarkDiv.style.zIndex = '1';
-      watermarkDiv.style.transform = 'rotate(-45deg)';
       
-      // Repeat watermark text
-      for (let i = 0; i < 100; i++) { // Increased number of watermark elements
-        const watermarkText = document.createElement('div');
-        watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
-        watermarkText.style.margin = '20px';
-        watermarkText.style.fontSize = '10px';
-        watermarkText.style.color = '#000';
-        watermarkDiv.appendChild(watermarkText);
+      // Create horizontal rows of watermark text with reduced line height
+      for (let i = 0; i < 30; i++) { // Adjusted number of rows
+        const watermarkRow = document.createElement('div');
+        watermarkRow.style.display = 'flex';
+        watermarkRow.style.justifyContent = 'flex-start';
+        watermarkRow.style.flexWrap = 'nowrap';
+        watermarkRow.style.whiteSpace = 'nowrap';
+        watermarkRow.style.lineHeight = '0.8rem'; // Reduced line height
+        watermarkRow.style.overflow = 'hidden';
+        
+        // Fill each row with repeated text
+        let rowContent = '';
+        for (let j = 0; j < 20; j++) {
+          rowContent += 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate ';
+        }
+        
+        watermarkRow.textContent = rowContent;
+        watermarkRow.style.fontSize = '8px';
+        watermarkRow.style.color = '#555';
+        watermarkDiv.appendChild(watermarkRow);
       }
       
       // Clone the certificate for PDF
@@ -141,13 +151,8 @@ const CertificateView = () => {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = 0;
-      const imgY = 0;
       
-      pdf.addImage(imgData, 'PNG', imgX, imgY, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Birth Registration Certificate - ${certificate.childName}.pdf`);
       
       toast({
@@ -169,6 +174,7 @@ const CertificateView = () => {
     
     // Create print-specific content with watermark
     const printContent = document.createElement('div');
+    printContent.className = 'certificate-container';
     printContent.style.width = '210mm';
     printContent.style.height = '297mm';
     printContent.style.margin = '0 auto';
@@ -176,37 +182,34 @@ const CertificateView = () => {
     printContent.style.overflow = 'hidden';
     printContent.style.backgroundColor = 'white';
     
-    // Add watermark for printing with higher density
+    // Add watermark for printing with horizontal layout
     const watermarkDiv = document.createElement('div');
     watermarkDiv.className = 'certificate-watermark';
-    watermarkDiv.style.position = 'absolute';
-    watermarkDiv.style.top = '0';
-    watermarkDiv.style.left = '0';
-    watermarkDiv.style.width = '100%';
-    watermarkDiv.style.height = '100%';
-    watermarkDiv.style.display = 'flex';
-    watermarkDiv.style.flexWrap = 'wrap';
-    watermarkDiv.style.justifyContent = 'center';
-    watermarkDiv.style.alignItems = 'center';
-    watermarkDiv.style.opacity = '0.4'; // Increased opacity for better visibility
-    watermarkDiv.style.pointerEvents = 'none';
-    watermarkDiv.style.zIndex = '1';
-    watermarkDiv.style.transform = 'rotate(-45deg)';
     
-    // Add many more watermark texts to fill the page completely
-    for (let i = 0; i < 200; i++) {
-      const watermarkText = document.createElement('div');
-      watermarkText.textContent = 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate';
-      watermarkText.style.margin = '15px';
-      watermarkText.style.fontSize = '10px';
-      watermarkText.style.color = '#000';
-      watermarkText.style.whiteSpace = 'nowrap';
-      watermarkDiv.appendChild(watermarkText);
+    // Create horizontal rows of watermark text with reduced line height
+    for (let i = 0; i < 40; i++) { // More rows for print
+      const watermarkRow = document.createElement('div');
+      watermarkRow.style.display = 'flex';
+      watermarkRow.style.justifyContent = 'flex-start';
+      watermarkRow.style.flexWrap = 'nowrap';
+      watermarkRow.style.whiteSpace = 'nowrap';
+      watermarkRow.style.lineHeight = '0.8rem'; // Reduced line height
+      watermarkRow.style.overflow = 'hidden';
+      
+      // Fill each row with repeated text
+      let rowContent = '';
+      for (let j = 0; j < 20; j++) {
+        rowContent += 'जन्म दर्ता प्रमाणपत्र Birth Registration Certificate ';
+      }
+      
+      watermarkRow.textContent = rowContent;
+      watermarkRow.style.fontSize = '8px';
+      watermarkRow.style.color = '#555';
+      watermarkDiv.appendChild(watermarkRow);
     }
     
     // Clone the certificate for printing
     const certificateClone = certificateRef.current.cloneNode(true) as HTMLElement;
-    certificateClone.className = 'certificate-container';
     certificateClone.style.position = 'relative';
     certificateClone.style.zIndex = '2';
     certificateClone.style.padding = '20mm';
@@ -233,7 +236,7 @@ const CertificateView = () => {
       body {
         margin: 0;
         padding: 0;
-        background: white;
+        background: white !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
@@ -245,11 +248,35 @@ const CertificateView = () => {
         box-sizing: border-box;
         page-break-after: always;
         background-color: white !important;
+        position: relative !important;
+        overflow: hidden !important;
+      }
+      .certificate-watermark {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0.4 !important;
+        z-index: 1 !important;
+        pointer-events: none !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .certificate-watermark div {
+        line-height: 0.8rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        font-size: 8px !important;
+        color: #555 !important;
       }
       .certificate-body {
         border: 2px solid #ddd !important;
         padding: 1.5rem !important;
         background-color: white !important;
+        position: relative !important;
+        z-index: 2 !important;
       }
       .certificate-field {
         display: grid !important;
@@ -264,16 +291,6 @@ const CertificateView = () => {
         border-bottom: 1px dashed #666 !important;
         text-align: left !important;
       }
-      .certificate-watermark {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        opacity: 0.4 !important;
-        z-index: 1 !important;
-        pointer-events: none !important;
-      }
       .signature-box {
         display: flex !important;
         flex-direction: column !important;
@@ -281,6 +298,7 @@ const CertificateView = () => {
       }
       .handwriting {
         font-family: 'Dancing Script', cursive !important;
+        font-size: 1.25rem !important;
       }
     `;
     
@@ -303,7 +321,7 @@ const CertificateView = () => {
           printWindow.onafterprint = function() {
             printWindow.close();
           };
-        }, 500);
+        }, 1000); // Increased timeout for loading resources
       };
     } else {
       toast({

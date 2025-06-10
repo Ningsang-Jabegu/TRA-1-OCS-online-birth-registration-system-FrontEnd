@@ -1,22 +1,21 @@
 
 import { Link } from "react-router-dom";
+import Image from "../images/Image";
+import {websiteFirstLaunchedYear} from "../db/LocalDataBase";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const displayYear = currentYear > websiteFirstLaunchedYear ? `${websiteFirstLaunchedYear} - ${currentYear}` : websiteFirstLaunchedYear;
 
   return (
     <footer className="bg-white border-t py-8">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="flex items-center mb-4 md:mb-0">
-            <img
-              src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-              alt="Nepal Coat of Arms"
-              className="h-8 w-auto mr-2"
-            />
+            <Image name="logo" className="h-8 w-auto mr-2" />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-nepal-blue">
-                Online Birth Registration System
+                Online Birth Registration Certificate System
               </span>
               <span className="text-xs text-nepal-red">
                 Government of Nepal
@@ -38,8 +37,8 @@ const Footer = () => {
         </div>
         
         <div className="mt-6 border-t pt-6 text-center text-sm text-gray-500">
-          <p>© {currentYear} Online Birth Registration and Certificate Generator System. All rights reserved.</p>
-          <p className="mt-1">Developed as part of E-Governance (CSC366) course project</p>
+          <p>©  {displayYear} Online Birth Registration and Certificate Generator System. All rights reserved.</p>
+          <p className="mt-1">Developed as part of Project Work (CSC412) course project</p>
         </div>
       </div>
     </footer>

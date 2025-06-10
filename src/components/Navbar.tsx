@@ -9,6 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Menu, User, LogOut } from "lucide-react";
+import Image from "../images/Image";
 
 const Navbar = () => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
@@ -26,13 +27,9 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <img
-                src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-                alt="Nepal Coat of Arms"
-                className="h-10 w-auto mr-2"
-              />
+              <Image name="logo" className="h-10 w-auto mr-2" />
               <div className="flex flex-col">
-                <span className="text-lg font-semibold text-nepal-blue">Birth Registration</span>
+                <span className="text-lg font-semibold text-nepal-blue">Birth Registration Certificate</span>
                 <span className="text-xs text-nepal-red">Nepal Government</span>
               </div>
             </Link>

@@ -16,6 +16,7 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import Image from "../images/Image"
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -27,6 +28,7 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   
+
   const navigate = useNavigate();
 
   // Generate a simple captcha
@@ -133,11 +135,7 @@ const ForgotPassword = () => {
       <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-6">
-            <img
-              src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-              alt="Nepal Coat of Arms"
-              className="h-16 w-auto"
-            />
+            <Image name="logo" className="h-16 w-auto" />
           </div>
           
           <Card className="shadow-md">

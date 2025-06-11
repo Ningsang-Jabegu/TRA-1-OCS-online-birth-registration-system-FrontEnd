@@ -1,5 +1,6 @@
 
 import React from "react";
+import Image from "../images/Image";
 
 interface BilingualHeaderProps {
   englishTitle: string;
@@ -15,11 +16,7 @@ const BilingualHeader: React.FC<BilingualHeaderProps> = ({
   return (
     <div className="certificate-header">
       <div className="flex items-center justify-center">
-        <img
-          src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-          alt="Nepal Government Logo"
-          className="h-16 w-auto"
-        />
+        <Image alt="Nepal Government Logo" name="logo" className="h-16 w-auto" />
       </div>
       <div className="text-center space-y-2">
         <h1 className="text-xl md:text-2xl font-bold text-nepal-red">

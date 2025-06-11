@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import Image from "../images/Image";
 
 const BirthRegistration = () => {
   const { user, isAuthenticated, isGuest } = useAuth();

@@ -1,6 +1,7 @@
 import { FileText, Search, QrCode } from "lucide-react";
 import { ReactNode } from "react";
 import Logo from "../assets/photoUsed/Coat_Of_Arms_Logo.png";
+import Authorized_Signature from "../assets/photoUsed/Authorized_Signature.png";
 
 // src/db/LocalDataBase.tsx
 
@@ -46,6 +47,10 @@ export const servicesData: ServiceItem[] = [
 // Image sources mapped by name
 export const imageSrc: Record<string, { src: string; alt: string }> = {
   logo: { src: Logo as string, alt: "Coat of Arms Logo" },
+  "authorized-signature": {
+    src: Authorized_Signature as string,
+    alt: "Authorized Signature",
+  },
   "birth-registration": {
     src: "/images/birth-registration.png",
     alt: "Birth Registration",

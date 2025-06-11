@@ -38,7 +38,8 @@ const Footer = () => {
         
         <div className="mt-6 border-t pt-6 text-center text-sm text-gray-500">
           <p>©  {displayYear} Online Birth Registration and Certificate Generator System. All rights reserved.</p>
-          <p className="mt-1">Developed as part of Project Work (CSC412) course project</p>
+          <p className="mt-1">Developed by <Link to="www.ningsangjabegu.com.np" target="_blank" className=" font-bold underline" >Ningsang Jabegu </Link> as part of Trainingship Program conducted by OM Consultancy Services</p>
+          <p className="mt-1"> For the 7<sup>th</sup> Semester Project Work (CSC412) course, Amrit Science Campus, Institute of Science and Technology, Tribhuvan University</p>
         </div>
       </div>
     </footer>

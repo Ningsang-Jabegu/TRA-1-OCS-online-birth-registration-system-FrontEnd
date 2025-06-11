@@ -31,16 +31,18 @@ import {
 } from "@/components/ui/dialog";
 import { UserRole } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+import Image from "../images/Image";
+import { adminSecretCodes } from "../db/LocalDataBase";
 
-// List of valid admin secret codes
-const validSecretCodes = [
-  "100A", "100B", "100C", "100D", "100E", "100F", "100G", "100H", "100I", "100J",
-  "100K", "100L", "100M", "100N", "100O", "100P", "100Q", "100R", "100S", "100T",
-  "100U", "100V", "100W", "100X", "100Y", "100Z", "999A", "999B", "999C", "999D",
-  "999E", "999F", "999G", "999H", "999I", "999J", "999K", "999L", "999M", "999N",
-  "999O", "999P", "999Q", "999R", "999S", "999T", "999U", "999V", "999W", "999X",
-  "999Y", "999Z"
-];
+// // List of valid admin secret codes
+// const validSecretCodes = [
+//   "100A", "100B", "100C", "100D", "100E", "100F", "100G", "100H", "100I", "100J",
+//   "100K", "100L", "100M", "100N", "100O", "100P", "100Q", "100R", "100S", "100T",
+//   "100U", "100V", "100W", "100X", "100Y", "100Z", "999A", "999B", "999C", "999D",
+//   "999E", "999F", "999G", "999H", "999I", "999J", "999K", "999L", "999M", "999N",
+//   "999O", "999P", "999Q", "999R", "999S", "999T", "999U", "999V", "999W", "999X",
+//   "999Y", "999Z"
+// ];
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -58,13 +60,37 @@ const Register = () => {
 
   const handleRoleChange = (value: string) => {
     setRole(value as UserRole);
-    if (value === "Administrator" && !secretCodeVerified) {
-      setShowSecretDialog(true);
+    if (value === "Administrator") {
+      if (!name.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Full Name Required",
+          description: "Please enter your full name before selecting Administrator.",
+        });
+        setRole("Citizen");
+        return;
+      }
+      const admin = adminSecretCodes.find(
+        (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()
+      );
+      if (admin) {
+        setShowSecretDialog(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Name Not Recognized",
+          description: "The full name does not match any of our Administrator officers.",
+        });
+        setRole("Citizen");
+      }
     }
   };
 
   const verifySecretCode = () => {
-    if (validSecretCodes.includes(secretCode)) {
+    const admin = adminSecretCodes.find(
+      (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase() && a.code === secretCode.trim()
+    );
+    if (admin) {
       setSecretCodeVerified(true);
       setShowSecretDialog(false);
       toast({
@@ -72,10 +98,11 @@ const Register = () => {
         description: "Your administrator secret code has been verified.",
       });
     } else {
+      setSecretCodeVerified(false);
       toast({
         variant: "destructive",
         title: "Invalid Secret Code",
-        description: "The secret code you entered is invalid. Please try again.",
+        description: "The secret code or name you entered is invalid. Please try again.",
       });
     }
   };
@@ -135,11 +162,7 @@ const Register = () => {
       <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-6">
-            <img
-              src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-              alt="Nepal Coat of Arms"
-              className="h-16 w-auto"
-            />
+            <Image name="logo" className="h-16 w-auto" />
           </div>
           
           <Card className="shadow-md">
@@ -225,7 +248,7 @@ const Register = () => {
                   </Select>
                   <p className="text-xs text-gray-500">
                     {role === "Administrator" ? (
-                      <>Administrator: Full access to system and manage all records</>
+                      <>Administrator: Access to system and manage records accoding to the access granted by the organization.</>
                     ) : role === "Citizen" ? (
                       <>Citizen: Can register births and download certificates</>
                     ) : (
@@ -248,10 +271,73 @@ const Register = () => {
                   type="submit"
                   className="w-full"
                   disabled={loading}
+                  onClick={async (e) => {
+                    e.preventDefault();
+
+                    // Client-side validation to match server requirements
+                    if (
+                      !name ||
+                      !email ||
+                      !password ||
+                      !role ||
+                      (role === "Administrator" && !secretCode)
+                    ) {
+                      toast({
+                        variant: "destructive",
+                        title: "Missing Fields",
+                        description: "All fields are required.",
+                      });
+                      return;
+                    }
+
+                    setLoading(true);
+
+                    try {
+                      const response = await fetch("http://localhost:3000/api/register", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          name,
+                          email,
+                          password,
+                          role: role === "Administrator" ? "admin" : role.toLowerCase(),
+                          secretCode: role === "Administrator" ? secretCode : null, // set to null if not admin
+                        }),
+                      });
+
+                      const data = await response.json();
+
+                      if (!response.ok) {
+                        toast({
+                          variant: "destructive",
+                          title: "Registration Failed",
+                          description: data.error || "An error occurred during registration.",
+                        });
+                        setLoading(false);
+                        return;
+                      }
+
+                      toast({
+                        title: "Registration Successful",
+                        description: data.message || "Your account has been created.",
+                      });
+
+                      navigate("/dashboard");
+                    } catch (err) {
+                      toast({
+                        variant: "destructive",
+                        title: "Network Error",
+                        description: "Could not connect to the registration server.",
+                      });
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
                 >
                   {loading ? "Creating Account..." : "Create Account"}
-                </Button>
-              </form>
+                </Button>  </form>
             </CardContent>
             
             <CardFooter className="flex justify-center">

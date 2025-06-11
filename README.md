@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+<p align="center">
+    <img src="https://github.com/Ningsang-Jabegu/TRA-1-OCS-online-birth-registration-system/blob/main/src/assets/photoUsed/Coat_Of_Arms_Logo.png?raw=true" alt="Coat of Arms Logo" width="100" style="height:auto;">
+</p>
 
-## Project info
+<h1 align="center">Online Birth Registration System (Frontend)</h1>
 
-**URL**: https://lovable.dev/projects/794777d0-f381-41ba-a3ae-93553612633f
+<p align="center"><b>Modern, user-friendly interface for digital birth registration and certificate management.</b></p>
 
-## How can I edit this code?
+<br>
 
-There are several ways of editing your application.
+<table width="100%">
+  <tr>
+    <td align="left"><b>Documentation First Created On:</b> 2025/06/10</td>
+    <td align="right"><b>Last updated on:</b> 2024/06/11</td>
+  </tr>
+</table>
 
-**Use Lovable**
+<br>
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/794777d0-f381-41ba-a3ae-93553612633f) and start prompting.
+**Main Features:**
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Dynamic Dashboard Rendering:** The dashboard displays components based on the user's access privileges received from the backend. Users see only the features and navigation options relevant to their role (`Citizen`, `Guest`, or `Administrator`).
 
-**Use your preferred IDE**
+- **Role-Based Access:** After login, the frontend uses the access privileges provided by the server to generate the exact set of components and actions each user is allowed. For example, only `Administrator` users need to enter a Secret Code (provided by the organization) during registration to create an account.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Birth Registration:** Easily register births online without visiting government offices. Submit all required information digitally through intuitive forms.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Certificate Verification:** Quickly verify the authenticity of birth certificates using our secure verification system. Users can enter a certificate number or scan a QR code to check validity.
 
-Follow these steps:
+- **Digital Certificates:** Download and print official birth certificates with secure QR codes for verification from anywhere areound the world.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- **Responsive Design:** The UI is optimized for desktops, tablets, and mobile devices, ensuring a seamless experience everywhere.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+<br>
 
-# Step 3: Install the necessary dependencies.
-npm i
+*This repository contains the frontend code powering the above features. For backend code, please visit [TRA-1-OCS-online-birth-registration-system-BackEnd](https://github.com/Ningsang-Jabegu/TRA-1-OCS-online-birth-registration-system-BackEnd.git).*
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+<br>
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🚀 Getting Started
 
-**Use GitHub Codespaces**
+### Prerequisites
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Ensure you have the following installed:
 
-## What technologies are used for this project?
+- Node.js
+- npm (Node Package Manager)
+- git
 
-This project is built with:
+> [!IMPORTANT]
+> Please create pull requests from your feature branch to the main branch.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+> [!NOTE]
+> For any issues or questions, refer to the documentation or contact the maintainers.
 
-## How can I deploy this project?
+### Setup Steps
 
-Simply open [Lovable](https://lovable.dev/projects/794777d0-f381-41ba-a3ae-93553612633f) and click on Share -> Publish.
+1. **Clone the Repository**
 
-## Can I connect a custom domain to my Lovable project?
+    ```bash
+    git clone https://github.com/Ningsang-Jabegu/TRA-1-OCS-online-birth-registration-system.git
 
-Yes it is!
+    cd TRA-1-OCS-online-birth-registration-system
+    ```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+2. **Install Dependencies**
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+    ```bash
+    npm i
+    ```
+
+3. **Configure Environment Variables**
+
+    - Copy `.env.example` to `.env` and update values as needed.
+
+4. **Run the Application**
+
+    ```bash
+    npm run dev
+    ```
+
+    The frontend app will start, typically at `http://localhost:8080`.
+
+---
+
+## 🛠️ Contributing
+
+- Fork the repository and create your feature branch.
+- Commit using [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+- Push your branch and open a pull request.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+<p align="center"><b>Empowering digital birth registration for everyone.</b></p>

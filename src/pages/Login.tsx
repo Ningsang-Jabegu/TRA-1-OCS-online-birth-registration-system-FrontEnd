@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
+import Image from "../images/Image";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -70,11 +71,7 @@ const Login = () => {
       <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="flex justify-center mb-6">
-            <img
-              src="/lovable-uploads/f7085682-ba88-4978-b38a-376effea8a87.png"
-              alt="Nepal Coat of Arms"
-              className="h-16 w-auto"
-            />
+            <Image name="logo" className="h-16 w-auto" />
           </div>
           
           <Card className="shadow-md">

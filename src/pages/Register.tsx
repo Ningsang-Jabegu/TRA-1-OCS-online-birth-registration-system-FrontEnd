@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,13 +5,13 @@ import MainLayout from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,
@@ -33,16 +32,7 @@ import { UserRole } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import Image from "../images/Image";
 import { adminSecretCodes } from "../db/LocalDataBase";
-
-// // List of valid admin secret codes
-// const validSecretCodes = [
-//   "100A", "100B", "100C", "100D", "100E", "100F", "100G", "100H", "100I", "100J",
-//   "100K", "100L", "100M", "100N", "100O", "100P", "100Q", "100R", "100S", "100T",
-//   "100U", "100V", "100W", "100X", "100Y", "100Z", "999A", "999B", "999C", "999D",
-//   "999E", "999F", "999G", "999H", "999I", "999J", "999K", "999L", "999M", "999N",
-//   "999O", "999P", "999Q", "999R", "999S", "999T", "999U", "999V", "999W", "999X",
-//   "999Y", "999Z"
-// ];
+import bcrypt from 'bcryptjs';
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -54,9 +44,105 @@ const Register = () => {
   const [showSecretDialog, setShowSecretDialog] = useState(false);
   const [secretCode, setSecretCode] = useState("");
   const [secretCodeVerified, setSecretCodeVerified] = useState(false);
-  
-  const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Function to handle password hashing
+  // This function uses bcrypt to hash the password before sending it to the backend
+ const handlePasswordHashing = async (plainPassword: string) => {
+    const saltRounds = 10; // You can adjust the salt rounds based on your security requirements
+    const salt = await bcrypt.genSalt(saltRounds);
+    const hash = await bcrypt.hash(plainPassword, salt);
+    return { salt, hash };
+  };
+
+  const sendDataToBackend = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Form validation
+    if (!name || !email || !password || !confirmPassword) {
+        toast({
+            variant: "destructive",
+            title: "Missing Fields",
+            description: "Please fill in all fields.",
+        });
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        toast({
+            variant: "destructive",
+            title: "Password Mismatch",
+            description: "Passwords do not match.",
+        });
+        return;
+    }
+
+    if (password.length < 8) {
+        toast({
+            variant: "destructive",
+            title: "Password Too Short",
+            description: "Password must be at least 8 characters long.",
+        });
+        return;
+    }
+
+    if (role === "Administrator" && !secretCodeVerified) {
+        setShowSecretDialog(true);
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+        const code = role === "Administrator" ? secretCode : "0";
+        // Hash the password and get the salt
+    const { salt, hash } = await handlePasswordHashing(password);
+        const response = await fetch(
+            "http://localhost:3000/api/register",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password: hash,
+                    salt, // Hash the password before sending
+                    role: role, 
+                    secretCode: code, // Use the secret code only for Administrator role
+                    // For other roles, it can be "0" or an empty string
+                }),
+            }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            toast({
+                variant: "destructive",
+                title: "Registration Failed",
+                description: data.error || "An error occurred during registration.",
+            });
+            setLoading(false);
+            return;
+        }
+
+        toast({
+            title: "Registration Successful",
+            description: data.message || "Your account has been created.",
+        });
+
+        navigate("/dashboard");
+    } catch (err) {
+        toast({
+            variant: "destructive",
+            title: "Network Error",
+            description: "Could not connect to the registration server.",
+        });
+    } finally {
+        setLoading(false);
+    }
+};
 
   const handleRoleChange = (value: string) => {
     setRole(value as UserRole);
@@ -65,21 +151,21 @@ const Register = () => {
         toast({
           variant: "destructive",
           title: "Full Name Required",
-          description: "Please enter your full name before selecting Administrator.",
+          description:
+            "Please enter your full name before selecting Administrator.",
         });
         setRole("Citizen");
         return;
       }
-      const admin = adminSecretCodes.find(
-        (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase()
-      );
+      const admin = adminSecretCodes[name.trim()];
       if (admin) {
         setShowSecretDialog(true);
       } else {
         toast({
           variant: "destructive",
           title: "Name Not Recognized",
-          description: "The full name does not match any of our Administrator officers.",
+          description:
+            "The full name does not match any of our Administrator officers.",
         });
         setRole("Citizen");
       }
@@ -87,10 +173,9 @@ const Register = () => {
   };
 
   const verifySecretCode = () => {
-    const admin = adminSecretCodes.find(
-      (a) => a.name.trim().toLowerCase() === name.trim().toLowerCase() && a.code === secretCode.trim()
-    );
-    if (admin) {
+    const admin = adminSecretCodes[name.trim()];
+    if (admin && admin.code === secretCode.trim()) {
+      setSecretCode(admin.code);
       setSecretCodeVerified(true);
       setShowSecretDialog(false);
       toast({
@@ -102,14 +187,15 @@ const Register = () => {
       toast({
         variant: "destructive",
         title: "Invalid Secret Code",
-        description: "The secret code or name you entered is invalid. Please try again.",
+        description:
+          "The secret code or name you entered is invalid. Please try again.",
       });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Form validation
     if (!name || !email || !password || !confirmPassword) {
       toast({
@@ -119,7 +205,7 @@ const Register = () => {
       });
       return;
     }
-    
+
     if (password !== confirmPassword) {
       toast({
         variant: "destructive",
@@ -128,7 +214,7 @@ const Register = () => {
       });
       return;
     }
-    
+
     if (password.length < 8) {
       toast({
         variant: "destructive",
@@ -137,24 +223,13 @@ const Register = () => {
       });
       return;
     }
-    
+
     if (role === "Administrator" && !secretCodeVerified) {
       setShowSecretDialog(true);
       return;
     }
-    
+
     setLoading(true);
-    
-    try {
-      const success = await register(email, password, name, role);
-      if (success) {
-        navigate("/dashboard");
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -164,7 +239,7 @@ const Register = () => {
           <div className="flex justify-center mb-6">
             <Image name="logo" className="h-16 w-auto" />
           </div>
-          
+
           <Card className="shadow-md">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl text-center">Register</CardTitle>
@@ -172,7 +247,7 @@ const Register = () => {
                 Create a new account to access the birth registration system
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -187,7 +262,6 @@ const Register = () => {
                     required
                   />
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -200,7 +274,6 @@ const Register = () => {
                     required
                   />
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <Input
@@ -216,7 +289,6 @@ const Register = () => {
                     Password must be at least 8 characters long
                   </p>
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <Input
@@ -229,7 +301,6 @@ const Register = () => {
                     required
                   />
                 </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
                   <Select
@@ -243,106 +314,51 @@ const Register = () => {
                     <SelectContent>
                       <SelectItem value="Citizen">Citizen</SelectItem>
                       <SelectItem value="Guest">Guest</SelectItem>
-                      <SelectItem value="Administrator">Administrator</SelectItem>
+                      <SelectItem value="Administrator">
+                        Administrator
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">
                     {role === "Administrator" ? (
-                      <>Administrator: Access to system and manage records accoding to the access granted by the organization.</>
+                      <>
+                        Administrator: Access to system and manage records
+                        accoding to the access granted by the organization.
+                      </>
                     ) : role === "Citizen" ? (
-                      <>Citizen: Can register births and download certificates</>
+                      <>
+                        Citizen: Can register births and download certificates
+                      </>
                     ) : (
                       <>Guest: Can only view public information</>
                     )}
                   </p>
                 </div>
-                
                 {role === "Administrator" && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
                     <p className="text-sm text-amber-800">
-                      {secretCodeVerified 
-                        ? "Administrator secret code verified ✓" 
+                      {secretCodeVerified
+                        ? "Administrator secret code verified ✓"
                         : "Administrator role requires a secret code verification"}
                     </p>
                   </div>
                 )}
-                
                 <Button
                   type="submit"
                   className="w-full"
                   disabled={loading}
-                  onClick={async (e) => {
-                    e.preventDefault();
-
-                    // Client-side validation to match server requirements
-                    if (
-                      !name ||
-                      !email ||
-                      !password ||
-                      !role ||
-                      (role === "Administrator" && !secretCode)
-                    ) {
-                      toast({
-                        variant: "destructive",
-                        title: "Missing Fields",
-                        description: "All fields are required.",
-                      });
-                      return;
-                    }
-
-                    setLoading(true);
-
-                    try {
-                      const response = await fetch("http://localhost:3000/api/register", {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                          name,
-                          email,
-                          password,
-                          role: role === "Administrator" ? "admin" : role.toLowerCase(),
-                          secretCode: role === "Administrator" ? secretCode : null, // set to null if not admin
-                        }),
-                      });
-
-                      const data = await response.json();
-
-                      if (!response.ok) {
-                        toast({
-                          variant: "destructive",
-                          title: "Registration Failed",
-                          description: data.error || "An error occurred during registration.",
-                        });
-                        setLoading(false);
-                        return;
-                      }
-
-                      toast({
-                        title: "Registration Successful",
-                        description: data.message || "Your account has been created.",
-                      });
-
-                      navigate("/dashboard");
-                    } catch (err) {
-                      toast({
-                        variant: "destructive",
-                        title: "Network Error",
-                        description: "Could not connect to the registration server.",
-                      });
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
+                  onClick={sendDataToBackend}
                 >
                   {loading ? "Creating Account..." : "Create Account"}
-                </Button>  </form>
+                </Button>{" "}
+              </form>
             </CardContent>
-            
+
             <CardFooter className="flex justify-center">
               <div className="text-center">
-                <span className="text-sm text-gray-500">Already have an account?</span>{" "}
+                <span className="text-sm text-gray-500">
+                  Already have an account?
+                </span>{" "}
                 <Link
                   to="/login"
                   className="text-sm text-nepal-blue hover:underline"
@@ -360,7 +376,8 @@ const Register = () => {
           <DialogHeader>
             <DialogTitle>Administrator Verification</DialogTitle>
             <DialogDescription>
-              Please enter the secret code provided by the administration office to verify your administrator status.
+              Please enter the secret code provided by the administration office
+              to verify your administrator status.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -374,15 +391,19 @@ const Register = () => {
                 onChange={(e) => setSecretCode(e.target.value)}
               />
               <p className="text-xs text-gray-500">
-                The secret code is provided by the administration office and is required for administrator access.
+                The secret code is provided by the administration office and is
+                required for administrator access.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setRole("Citizen");
-              setShowSecretDialog(false);
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRole("Citizen");
+                setShowSecretDialog(false);
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={verifySecretCode}>Verify</Button>

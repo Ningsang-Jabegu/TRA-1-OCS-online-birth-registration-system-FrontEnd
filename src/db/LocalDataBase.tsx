@@ -69,21 +69,18 @@ export const imageSrc: Record<string, { src: string; alt: string }> = {
 export const websiteFirstLaunchedYear = 2024;
 
 export interface AdminSecretCode {
-  name: string;
   role: string[];
   code: string;
 }
 
-export const adminSecretCodes: AdminSecretCode[] = [
-  {
-    name: "Ningsang Jabegu",
+export const adminSecretCodes: Record<string, AdminSecretCode> = {
+  "Ningsang Jabegu": {
     role: ["manage-users", "view-reports", "edit-settings"],
     code: "999A",
   },
-  {
-    name: "Poonam Limbu",
+  // Add more administrators as needed
+  "Poonam Limbu": {
     role: ["view-reports"],
     code: "999B",
   },
-  // Add more administrators as needed
-];
+};

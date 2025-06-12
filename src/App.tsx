@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,7 +25,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -35,43 +34,43 @@ const App = () => (
             <Route path="/certificate-verification" element={<CertificateVerification />} />
             <Route 
               path="/dashboard" 
-              element={
+              element={(
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
-              } 
+              )} 
             />
             <Route 
               path="/profile/update" 
-              element={
+              element={(
                 <ProtectedRoute>
                   <ProfileUpdate />
                 </ProtectedRoute>
-              } 
+              )} 
             />
             <Route 
               path="/birth-registration" 
-              element={
+              element={(
                 <ProtectedRoute>
                   <BirthRegistration />
                 </ProtectedRoute>
-              } 
+              )} 
             />
             <Route 
               path="/certificate/:id" 
-              element={
+              element={(
                 <ProtectedRoute>
                   <CertificateView />
                 </ProtectedRoute>
-              } 
+              )} 
             />
             <Route 
               path="/admin" 
-              element={
+              element={(
                 <ProtectedRoute adminOnly>
                   <AdminDashboard />
                 </ProtectedRoute>
-              } 
+              )} 
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

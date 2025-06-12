@@ -11,7 +11,7 @@
 <table width="100%">
   <tr>
     <td align="left"><b>Documentation First Created On:</b> 2025/06/10</td>
-    <td align="right"><b>Last updated on:</b> 2024/06/11</td>
+    <td align="right"><b>Last updated on:</b> 2024/06/13</td>
   </tr>
 </table>
 
@@ -19,9 +19,13 @@
 
 **Main Features:**
 
+- **User Registration:** Users can create accounts as `Citizen`, `Guest`, or `Administrator`, with each role providing access to specific system features. Additionally, the `Administrator` role includes multiple sub-roles, as defined by the organization head, allowing for more granular administrative privileges.
+
 - **Dynamic Dashboard Rendering:** The dashboard displays components based on the user's access privileges received from the backend. Users see only the features and navigation options relevant to their role (`Citizen`, `Guest`, or `Administrator`).
 
 - **Role-Based Access:** After login, the frontend uses the access privileges provided by the server to generate the exact set of components and actions each user is allowed. For example, only `Administrator` users need to enter a Secret Code (provided by the organization) during registration to create an account.
+
+- **Secret Code for Administrators:** Only users registering as Administrators are required to enter a secret code provided by the organization. This code verifies their role and determines their level of system access.
 
 - **Birth Registration:** Easily register births online without visiting government offices. Submit all required information digitally through intuitive forms.
 

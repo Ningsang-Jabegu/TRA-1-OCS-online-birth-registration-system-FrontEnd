@@ -1,5 +1,10 @@
-
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
 import { toast } from "@/components/ui/use-toast";
 
 export type UserRole = "Administrator" | "Citizen" | "Guest";
@@ -11,6 +16,7 @@ interface User {
   role: UserRole;
   phone?: string;
   address?: string;
+  password?: string;
 }
 
 interface AuthContextProps {
@@ -19,7 +25,12 @@ interface AuthContextProps {
   isAdmin: boolean;
   isGuest: boolean; // Add isGuest property to fix error in BirthRegistration.tsx
   login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole
+  ) => Promise<boolean>;
   logout: () => void;
   updateUserProfile: (updatedUser: Partial<User>) => Promise<boolean>;
   resetPassword: (email: string, newPassword: string) => Promise<boolean>;
@@ -84,7 +95,7 @@ const mockUsers: MockUser[] = [
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Check for stored user on initial load
   useEffect(() => {
     const storedUser = localStorage.getItem("auth_user");
@@ -99,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     setLoading(false);
   }, []);
-  
+
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     // Simulate API call
@@ -108,18 +119,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const foundUser = mockUsers.find(
         (u) => u.email === email && u.password === password
       );
-      
+
       if (foundUser) {
         // Remove password before storing
         const { password, ...userWithoutPassword } = foundUser;
+
+        // Store the user object without the password
         setUser(userWithoutPassword);
-        localStorage.setItem("auth_user", JSON.stringify(userWithoutPassword));
-        
+
+        // Store only the user ID or a token in localStorage
+        localStorage.setItem(
+          "auth_user",
+          JSON.stringify({ userId: userWithoutPassword.id })
+        );
+
         toast({
           title: "Login Successful",
           description: `Welcome back, ${foundUser.name}!`,
         });
-        
+
         return true;
       } else {
         toast({
@@ -131,17 +149,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      
+
       toast({
         variant: "destructive",
         title: "Login Error",
         description: "An error occurred during login. Please try again.",
       });
-      
+
       return false;
     }
   };
-  
+
   // Register function
   const register = async (
     email: string,
@@ -156,11 +174,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         toast({
           variant: "destructive",
           title: "Registration Failed",
-          description: "This email is already registered. Please use a different email.",
+          description:
+            "This email is already registered. Please use a different email.",
         });
         return false;
       }
-      
+
       // Create new user
       const newUser = {
         id: `user-${Date.now()}`,
@@ -169,81 +188,97 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password,
         role,
       };
-      
+
       // Add to mock database (in a real app, this would be an API call)
       mockUsers.push(newUser);
-      
+
       // Remove password before storing
       const { password: _, ...userWithoutPassword } = newUser;
       setUser(userWithoutPassword);
-      localStorage.setItem("auth_user", JSON.stringify(userWithoutPassword));
-      
+
+      // Store only the user ID in localStorage
+      localStorage.setItem(
+        "auth_user",
+        JSON.stringify({ userId: userWithoutPassword.id })
+      );
+
       toast({
         title: "Registration Successful",
         description: "Your account has been created successfully.",
       });
-      
+
       return true;
     } catch (error) {
       console.error("Registration error:", error);
-      
+
       toast({
         variant: "destructive",
         title: "Registration Error",
         description: "An error occurred during registration. Please try again.",
       });
-      
+
       return false;
     }
   };
-  
+
   // Logout function
   const logout = () => {
     setUser(null);
     localStorage.removeItem("auth_user");
-    
+
     toast({
       title: "Logged Out",
       description: "You have been logged out successfully.",
     });
   };
-  
+
   // Update user profile
-  const updateUserProfile = async (updatedUser: Partial<User>): Promise<boolean> => {
+  const updateUserProfile = async (
+    updatedUser: Partial<User>
+  ): Promise<boolean> => {
     try {
       if (!user) return false;
-      
+
       // Create updated user object
       const newUserData = { ...user, ...updatedUser };
-      
+
       // Update in mock database (in a real app, this would be an API call)
       const userIndex = mockUsers.findIndex((u) => u.id === user.id);
       if (userIndex !== -1) {
         const { password } = mockUsers[userIndex];
         // Using the fixed type here
-        mockUsers[userIndex] = { 
-          ...newUserData, 
-          password 
+        mockUsers[userIndex] = {
+          ...newUserData,
+          password,
         } as MockUser;
       }
-      
+
+      // Remove password before storing
+      const { password: _, ...userWithoutPassword } = newUserData;
+
       // Update local state and storage
-      setUser(newUserData);
-      localStorage.setItem("auth_user", JSON.stringify(newUserData));
-      
+      setUser(userWithoutPassword);
+      localStorage.setItem(
+        "auth_user",
+        JSON.stringify({ userId: userWithoutPassword.id })
+      );
+
       return true;
     } catch (error) {
       console.error("Profile update error:", error);
       return false;
     }
   };
-  
+
   // Reset password
-  const resetPassword = async (email: string, newPassword: string): Promise<boolean> => {
+  const resetPassword = async (
+    email: string,
+    newPassword: string
+  ): Promise<boolean> => {
     try {
       // Find user in mock database
       const userIndex = mockUsers.findIndex((u) => u.email === email);
-      
+
       if (userIndex !== -1) {
         // Update password
         mockUsers[userIndex].password = newPassword;
@@ -256,11 +291,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     }
   };
-  
+
   const isAuthenticated = !!user;
   const isAdmin = !!user && user.role === "Administrator";
   const isGuest = !!user && user.role === "Guest"; // Add isGuest calculation
-  
+
   return (
     <AuthContext.Provider
       value={{

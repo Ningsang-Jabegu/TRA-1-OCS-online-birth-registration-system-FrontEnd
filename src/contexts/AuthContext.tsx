@@ -127,11 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Store the user object without the password
         setUser(userWithoutPassword);
 
-        // Store only the user ID or a token in localStorage
-        localStorage.setItem(
-          "auth_user",
-          JSON.stringify({ userId: userWithoutPassword.id })
-        );
+        // Store only a non-sensitive user ID in localStorage (never the full user object)
+        localStorage.setItem("auth_user_id", userWithoutPassword.id);
 
         toast({
           title: "Login Successful",

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,14 +26,19 @@ import { toast } from "@/components/ui/use-toast";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import Image from "../images/Image";
+// import Image from "../images/Image";
+import crypto from "crypto";
 
 const BirthRegistration = () => {
-  const { user, isAuthenticated, isGuest } = useAuth();
+  const {isAuthenticated, isGuest } = useAuth();
   const navigate = useNavigate();
-  
+
   // Form fields
   const [childFirstName, setChildFirstName] = useState("");
   const [childMiddleName, setChildMiddleName] = useState("");
@@ -45,40 +49,53 @@ const BirthRegistration = () => {
   const [birthDistrict, setBirthDistrict] = useState("");
   const [birthMunicipality, setBirthMunicipality] = useState("");
   const [birthWard, setBirthWard] = useState("");
-  
+
   // Parents information
   const [fatherFirstName, setFatherFirstName] = useState("");
   const [fatherMiddleName, setFatherMiddleName] = useState("");
   const [fatherLastName, setFatherLastName] = useState("");
   const [fatherCitizenshipNo, setFatherCitizenshipNo] = useState("");
-  
+
   const [motherFirstName, setMotherFirstName] = useState("");
   const [motherMiddleName, setMotherMiddleName] = useState("");
   const [motherLastName, setMotherLastName] = useState("");
   const [motherCitizenshipNo, setMotherCitizenshipNo] = useState("");
-  
+
   // Additional details
   const [permanentAddress, setPermanentAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [remarks, setRemarks] = useState("");
-  
+
   const [loading, setLoading] = useState(false);
-  
+
   // Redirect if not authenticated or is a guest
   if (!isAuthenticated || isGuest) {
     navigate("/login");
     return null;
   }
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
-    if (!childFirstName || !childLastName || !gender || !dateOfBirth || !placeOfBirth ||
-        !birthDistrict || !birthMunicipality || !birthWard ||
-        !fatherFirstName || !fatherLastName || !fatherCitizenshipNo ||
-        !motherFirstName || !motherLastName || !motherCitizenshipNo ||
-        !permanentAddress || !contactNumber) {
+    if (
+      !childFirstName ||
+      !childLastName ||
+      !gender ||
+      !dateOfBirth ||
+      !placeOfBirth ||
+      !birthDistrict ||
+      !birthMunicipality ||
+      !birthWard ||
+      !fatherFirstName ||
+      !fatherLastName ||
+      !fatherCitizenshipNo ||
+      !motherFirstName ||
+      !motherLastName ||
+      !motherCitizenshipNo ||
+      !permanentAddress ||
+      !contactNumber
+    ) {
       toast({
         variant: "destructive",
         title: "Missing Fields",
@@ -86,21 +103,26 @@ const BirthRegistration = () => {
       });
       return;
     }
-    
+
     setLoading(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       setLoading(false);
-      
+
       toast({
         title: "Registration Successful",
         description: "Birth registration has been submitted successfully.",
       });
-      
+
       // Generate a mock certificate ID
-      const certificateId = `BC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-      
+      const generateCertificateId = () => {
+        const year = new Date().getFullYear();
+        const randomValue = crypto.randomInt(0, 1000); // Generates a cryptographically secure random integer between 0 and 999
+        const paddedRandomValue = randomValue.toString().padStart(3, "0");
+        return `BC-${year}-${paddedRandomValue}`;
+      };
+      const certificateId = generateCertificateId();
       // Navigate to the dashboard
       navigate(`/certificate/${certificateId}`);
     }, 1500);
@@ -113,7 +135,7 @@ const BirthRegistration = () => {
           englishTitle="Birth Registration Form"
           nepaliTitle="जन्म दर्ता फारम"
         />
-        
+
         <div className="max-w-4xl mx-auto mt-8">
           <Card>
             <CardHeader>
@@ -122,7 +144,7 @@ const BirthRegistration = () => {
                 Please fill in all the required information to register a birth.
               </CardDescription>
             </CardHeader>
-            
+
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-6">
                 {/* Child Information */}
@@ -132,7 +154,9 @@ const BirthRegistration = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="childFirstName">First Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="childFirstName">
+                        First Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="childFirstName"
                         value={childFirstName}
@@ -149,7 +173,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="childLastName">Last Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="childLastName">
+                        Last Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="childLastName"
                         value={childLastName}
@@ -158,15 +184,13 @@ const BirthRegistration = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="gender">Gender <span className="text-red-500">*</span></Label>
-                      <Select
-                        value={gender}
-                        onValueChange={setGender}
-                        required
-                      >
+                      <Label htmlFor="gender">
+                        Gender <span className="text-red-500">*</span>
+                      </Label>
+                      <Select value={gender} onValueChange={setGender} required>
                         <SelectTrigger id="gender">
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
@@ -177,9 +201,11 @@ const BirthRegistration = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="dateOfBirth">Date of Birth <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="dateOfBirth">
+                        Date of Birth <span className="text-red-500">*</span>
+                      </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -190,7 +216,11 @@ const BirthRegistration = () => {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateOfBirth ? format(dateOfBirth, "PPP") : <span>Select date</span>}
+                            {dateOfBirth ? (
+                              format(dateOfBirth, "PPP")
+                            ) : (
+                              <span>Select date</span>
+                            )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -206,7 +236,7 @@ const BirthRegistration = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Birth Location */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 text-nepal-blue">
@@ -214,7 +244,9 @@ const BirthRegistration = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="placeOfBirth">Place of Birth <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="placeOfBirth">
+                        Place of Birth <span className="text-red-500">*</span>
+                      </Label>
                       <Select
                         value={placeOfBirth}
                         onValueChange={setPlaceOfBirth}
@@ -226,16 +258,20 @@ const BirthRegistration = () => {
                         <SelectContent>
                           <SelectItem value="hospital">Hospital</SelectItem>
                           <SelectItem value="home">Home</SelectItem>
-                          <SelectItem value="healthPost">Health Post</SelectItem>
+                          <SelectItem value="healthPost">
+                            Health Post
+                          </SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="birthDistrict">District <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="birthDistrict">
+                        District <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="birthDistrict"
                         value={birthDistrict}
@@ -244,7 +280,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="birthMunicipality">Municipality/VDC <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="birthMunicipality">
+                        Municipality/VDC <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="birthMunicipality"
                         value={birthMunicipality}
@@ -253,7 +291,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="birthWard">Ward No. <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="birthWard">
+                        Ward No. <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="birthWard"
                         value={birthWard}
@@ -263,7 +303,7 @@ const BirthRegistration = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Father's Information */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 text-nepal-blue">
@@ -271,7 +311,9 @@ const BirthRegistration = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fatherFirstName">First Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="fatherFirstName">
+                        First Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="fatherFirstName"
                         value={fatherFirstName}
@@ -288,7 +330,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="fatherLastName">Last Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="fatherLastName">
+                        Last Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="fatherLastName"
                         value={fatherLastName}
@@ -297,10 +341,13 @@ const BirthRegistration = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fatherCitizenshipNo">Citizenship Number <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="fatherCitizenshipNo">
+                        Citizenship Number{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="fatherCitizenshipNo"
                         value={fatherCitizenshipNo}
@@ -310,7 +357,7 @@ const BirthRegistration = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Mother's Information */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 text-nepal-blue">
@@ -318,7 +365,9 @@ const BirthRegistration = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="motherFirstName">First Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="motherFirstName">
+                        First Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="motherFirstName"
                         value={motherFirstName}
@@ -335,7 +384,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="motherLastName">Last Name <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="motherLastName">
+                        Last Name <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="motherLastName"
                         value={motherLastName}
@@ -344,10 +395,13 @@ const BirthRegistration = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="motherCitizenshipNo">Citizenship Number <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="motherCitizenshipNo">
+                        Citizenship Number{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="motherCitizenshipNo"
                         value={motherCitizenshipNo}
@@ -357,7 +411,7 @@ const BirthRegistration = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Contact Information */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 text-nepal-blue">
@@ -365,7 +419,10 @@ const BirthRegistration = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="permanentAddress">Permanent Address <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="permanentAddress">
+                        Permanent Address{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
                       <Textarea
                         id="permanentAddress"
                         value={permanentAddress}
@@ -374,7 +431,9 @@ const BirthRegistration = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="contactNumber">Contact Number <span className="text-red-500">*</span></Label>
+                      <Label htmlFor="contactNumber">
+                        Contact Number <span className="text-red-500">*</span>
+                      </Label>
                       <Input
                         id="contactNumber"
                         value={contactNumber}
@@ -384,7 +443,7 @@ const BirthRegistration = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Remarks */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 text-nepal-blue">
@@ -401,9 +460,13 @@ const BirthRegistration = () => {
                   </div>
                 </div>
               </CardContent>
-              
+
               <CardFooter className="flex justify-between">
-                <Button variant="outline" type="button" onClick={() => navigate("/dashboard")}>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={loading}>

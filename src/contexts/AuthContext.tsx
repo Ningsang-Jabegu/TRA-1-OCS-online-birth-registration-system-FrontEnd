@@ -1,3 +1,4 @@
+// AuthProvider.tsx
 import React, {
   createContext,
   useState,
@@ -5,6 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import bcrypt from "bcryptjs";
 import { toast } from "@/components/ui/use-toast";
 
 export type UserRole = "Administrator" | "Citizen" | "Guest";
@@ -16,14 +18,14 @@ interface User {
   role: UserRole;
   phone?: string;
   address?: string;
-  password?: string;
+  passwordHash?: string;
 }
 
 interface AuthContextProps {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  isGuest: boolean; // Add isGuest property to fix error in BirthRegistration.tsx
+  isGuest: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     email: string,
@@ -40,7 +42,7 @@ const AuthContext = createContext<AuthContextProps>({
   user: null,
   isAuthenticated: false,
   isAdmin: false,
-  isGuest: false, // Initialize isGuest property
+  isGuest: false,
   login: async () => false,
   register: async () => false,
   logout: () => {},
@@ -54,25 +56,22 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Modify the type of mockUsers array to fix the optional phone and address properties
-type MockUser = {
+// Replace passwords with hashed values
+const mockUsers: {
   id: string;
   name: string;
   email: string;
-  password: string;
+  passwordHash: string;
   role: UserRole;
   phone?: string;
   address?: string;
-};
-
-// Mock user database
-const mockUsers: MockUser[] = [
+}[] = [
   {
     id: "admin-123",
     name: "Administrator",
     email: "ningsang@obrc.gov.np",
-    password: "NJabegu#112",
-    role: "Administrator" as UserRole,
+    passwordHash: bcrypt.hashSync("NJabegu#112", 10),
+    role: "Administrator",
     phone: "+977 9812345678",
     address: "Kathmandu, Nepal",
   },
@@ -80,15 +79,15 @@ const mockUsers: MockUser[] = [
     id: "citizen-123",
     name: "John Citizen",
     email: "citizen@example.com",
-    password: "citizen123",
-    role: "Citizen" as UserRole,
+    passwordHash: bcrypt.hashSync("citizen123", 10),
+    role: "Citizen",
   },
   {
     id: "guest-123",
     name: "Guest User",
     email: "guest@example.com",
-    password: "guest123",
-    role: "Guest" as UserRole,
+    passwordHash: bcrypt.hashSync("guest123", 10),
+    role: "Guest",
   },
 ];
 
@@ -96,45 +95,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for stored user on initial load
   useEffect(() => {
-    const storedUser = localStorage.getItem("auth_user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem("auth_user");
+    const storedUserId = localStorage.getItem("auth_user_id");
+    if (storedUserId) {
+      const matchedUser = mockUsers.find((u) => u.id === storedUserId);
+      if (matchedUser) {
+        const { passwordHash, ...safeUser } = matchedUser;
+        setUser(safeUser);
       }
     }
     setLoading(false);
   }, []);
 
-  // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
     try {
-      // Find user in mock database
-      const foundUser = mockUsers.find(
-        (u) => u.email === email && u.password === password
-      );
-
-      if (foundUser) {
-        // Remove password before storing
-        const { password, ...userWithoutPassword } = foundUser;
-
-        // Store the user object without the password
-        setUser(userWithoutPassword);
-
-        // Store only a non-sensitive user ID in localStorage (never the full user object)
-        localStorage.setItem("auth_user_id", userWithoutPassword.id);
-
+      const foundUser = mockUsers.find((u) => u.email === email);
+      if (foundUser && bcrypt.compareSync(password, foundUser.passwordHash)) {
+        const { passwordHash, ...safeUser } = foundUser;
+        setUser(safeUser);
+        localStorage.setItem("auth_user_id", safeUser.id);
         toast({
           title: "Login Successful",
           description: `Welcome back, ${foundUser.name}!`,
         });
-
         return true;
       } else {
         toast({
@@ -146,27 +129,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error) {
       console.error("Login error:", error);
-
       toast({
         variant: "destructive",
         title: "Login Error",
         description: "An error occurred during login. Please try again.",
       });
-
       return false;
     }
   };
 
-  // Register function
   const register = async (
     email: string,
     password: string,
     name: string,
     role: UserRole
   ): Promise<boolean> => {
-    // Simulate API call
     try {
-      // Check if user already exists
       if (mockUsers.some((u) => u.email === email)) {
         toast({
           variant: "destructive",
@@ -177,27 +155,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      // Create new user
+      const passwordHash = bcrypt.hashSync(password, 10);
       const newUser = {
         id: `user-${Date.now()}`,
         name,
         email,
-        password,
+        passwordHash,
         role,
       };
 
-      // Add to mock database (in a real app, this would be an API call)
       mockUsers.push(newUser);
-
-      // Remove password before storing
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword);
-
-      // Store only the user ID in localStorage
-      localStorage.setItem(
-        "auth_user",
-        JSON.stringify({ userId: userWithoutPassword.id })
-      );
+      const { passwordHash: _, ...safeUser } = newUser;
+      setUser(safeUser);
+      localStorage.setItem("auth_user_id", safeUser.id);
 
       toast({
         title: "Registration Successful",
@@ -207,59 +177,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       console.error("Registration error:", error);
-
       toast({
         variant: "destructive",
         title: "Registration Error",
         description: "An error occurred during registration. Please try again.",
       });
-
       return false;
     }
   };
 
-  // Logout function
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("auth_user");
-
+    localStorage.removeItem("auth_user_id");
     toast({
       title: "Logged Out",
       description: "You have been logged out successfully.",
     });
   };
 
-  // Update user profile
   const updateUserProfile = async (
     updatedUser: Partial<User>
   ): Promise<boolean> => {
     try {
       if (!user) return false;
-
-      // Create updated user object
       const newUserData = { ...user, ...updatedUser };
-
-      // Update in mock database (in a real app, this would be an API call)
       const userIndex = mockUsers.findIndex((u) => u.id === user.id);
       if (userIndex !== -1) {
-        const { password } = mockUsers[userIndex];
-        // Using the fixed type here
+        const { passwordHash } = mockUsers[userIndex];
         mockUsers[userIndex] = {
           ...newUserData,
-          password,
-        } as MockUser;
+          passwordHash,
+        } as typeof mockUsers[number];
       }
-
-      // Remove password before storing
-      const { password: _, ...userWithoutPassword } = newUserData;
-
-      // Update local state and storage
-      setUser(userWithoutPassword);
-      localStorage.setItem(
-        "auth_user",
-        JSON.stringify({ userId: userWithoutPassword.id })
-      );
-
+      const { passwordHash: _, ...safeUser } = newUserData;
+      setUser(safeUser);
+      localStorage.setItem("auth_user_id", safeUser.id);
       return true;
     } catch (error) {
       console.error("Profile update error:", error);
@@ -267,18 +219,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Reset password
   const resetPassword = async (
     email: string,
     newPassword: string
   ): Promise<boolean> => {
     try {
-      // Find user in mock database
       const userIndex = mockUsers.findIndex((u) => u.email === email);
-
       if (userIndex !== -1) {
-        // Update password
-        mockUsers[userIndex].password = newPassword;
+        mockUsers[userIndex].passwordHash = bcrypt.hashSync(newPassword, 10);
         return true;
       } else {
         return false;
@@ -291,7 +239,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user;
   const isAdmin = !!user && user.role === "Administrator";
-  const isGuest = !!user && user.role === "Guest"; // Add isGuest calculation
+  const isGuest = !!user && user.role === "Guest";
 
   return (
     <AuthContext.Provider
@@ -299,7 +247,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         isAuthenticated,
         isAdmin,
-        isGuest, // Include isGuest in the context value
+        isGuest,
         login,
         register,
         logout,

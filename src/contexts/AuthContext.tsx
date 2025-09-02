@@ -1,4 +1,3 @@
-// AuthProvider.tsx
 import React, {
   createContext,
   useState,
@@ -35,7 +34,12 @@ interface AuthContextProps {
   ) => Promise<boolean>;
   logout: () => void;
   updateUserProfile: (updatedUser: Partial<User>) => Promise<boolean>;
-  resetPassword: (email: string, newPassword: string) => Promise<boolean>;
+  resetPassword: (
+    email: string,
+    newPassword: string,
+    role: UserRole,
+    secretCode?: string
+  ) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps>({
@@ -56,7 +60,6 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Replace passwords with hashed values
 const mockUsers: {
   id: string;
   name: string;
@@ -109,21 +112,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const foundUser = mockUsers.find((u) => u.email === email);
-      if (foundUser && bcrypt.compareSync(password, foundUser.passwordHash)) {
-        const { passwordHash, ...safeUser } = foundUser;
-        setUser(safeUser);
-        localStorage.setItem("auth_user_id", safeUser.id);
+      console.log("📤 Frontend sending login:", { email, password });
+
+      const response = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      console.log("📥 Frontend received response:", data);
+
+      if (response.ok && data.success) {
+        setUser(data.user);
+        localStorage.setItem("auth_user_id", data.user.ID);
+
         toast({
           title: "Login Successful",
-          description: `Welcome back, ${foundUser.name}!`,
+          description: `Welcome back, ${data.user.NAME}!`,
         });
         return true;
       } else {
         toast({
           variant: "destructive",
           title: "Login Failed",
-          description: "Invalid email or password. Please try again.",
+          description: data.message || "Invalid email or password.",
         });
         return false;
       }
@@ -207,7 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         mockUsers[userIndex] = {
           ...newUserData,
           passwordHash,
-        } as typeof mockUsers[number];
+        } as (typeof mockUsers)[number];
       }
       const { passwordHash: _, ...safeUser } = newUserData;
       setUser(safeUser);
@@ -221,18 +234,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const resetPassword = async (
     email: string,
-    newPassword: string
+    newPassword: string,
+    role: UserRole,
+    secretCode?: string
   ): Promise<boolean> => {
     try {
-      const userIndex = mockUsers.findIndex((u) => u.email === email);
-      if (userIndex !== -1) {
-        mockUsers[userIndex].passwordHash = bcrypt.hashSync(newPassword, 10);
+      const response = await fetch("http://localhost:5000/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, newPassword, role, secretCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Password Reset Successful",
+          description: "Your password has been updated. You can now log in.",
+        });
         return true;
       } else {
+        toast({
+          variant: "destructive",
+          title: "Password Reset Failed",
+          description: data.message || "Could not reset password.",
+        });
         return false;
       }
     } catch (error) {
       console.error("Password reset error:", error);
+      toast({
+        variant: "destructive",
+        title: "Password Reset Error",
+        description: "An error occurred. Please try again.",
+      });
       return false;
     }
   };

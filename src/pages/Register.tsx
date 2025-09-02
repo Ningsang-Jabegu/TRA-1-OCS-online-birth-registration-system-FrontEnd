@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+// import { useAuth } from "@/contexts/AuthContext";
 import MainLayout from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { v4 as uuidv4 } from "uuid";
 import {
   Card,
   CardContent,
@@ -32,7 +33,8 @@ import { UserRole } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import Image from "../images/Image";
 import { adminSecretCodes } from "../db/LocalDataBase";
-import bcrypt from 'bcryptjs';
+// import bcrypt from 'bcryptjs';
+import { handlePasswordHashing } from "../lib/utils";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -40,109 +42,147 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("Citizen");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSecretDialog, setShowSecretDialog] = useState(false);
   const [secretCode, setSecretCode] = useState("");
   const [secretCodeVerified, setSecretCodeVerified] = useState(false);
   const navigate = useNavigate();
 
-  // Function to handle password hashing
-  // This function uses bcrypt to hash the password before sending it to the backend
- const handlePasswordHashing = async (plainPassword: string) => {
-    const saltRounds = 10; // You can adjust the salt rounds based on your security requirements
-    const salt = await bcrypt.genSalt(saltRounds);
-    const hash = await bcrypt.hash(plainPassword, salt);
-    return { salt, hash };
-  };
+  //  const handlePasswordHashing = async (plainPassword: string) => {
+  //     const saltRounds = 10; // You can adjust the salt rounds based on your security requirements
+  //     const salt = await bcrypt.genSalt(saltRounds);
+  //     const hash = await bcrypt.hash(plainPassword, salt);
+  //     return { salt, hash };
+  //   };
 
   const sendDataToBackend = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Form validation
-    if (!name || !email || !password || !confirmPassword) {
-        toast({
-            variant: "destructive",
-            title: "Missing Fields",
-            description: "Please fill in all fields.",
-        });
-        return;
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !phone ||
+      !address
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Missing Fields",
+        description: "Please fill in all fields.",
+      });
+      return;
     }
 
     if (password !== confirmPassword) {
-        toast({
-            variant: "destructive",
-            title: "Password Mismatch",
-            description: "Passwords do not match.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+      });
+      return;
     }
 
     if (password.length < 8) {
-        toast({
-            variant: "destructive",
-            title: "Password Too Short",
-            description: "Password must be at least 8 characters long.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters long.",
+      });
+      return;
+    }
+
+    if (phone === "" || phone.length < 5) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Phone Number",
+        description: "Phone number must be at least 5 digits long.",
+      });
+      return;
+    }
+
+    if (address === "" || address.length < 5) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Address",
+        description:
+          "You must enter address to continue the registration process.",
+      });
+      return;
     }
 
     if (role === "Administrator" && !secretCodeVerified) {
-        setShowSecretDialog(true);
-        return;
+      setShowSecretDialog(true);
+      return;
     }
 
     setLoading(true);
 
     try {
-        const code = role === "Administrator" ? secretCode : "0";
-        // Hash the password and get the salt
-    const { salt, hash } = await handlePasswordHashing(password);
-        const response = await fetch(
-            "http://localhost:3000/api/register",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    name,
-                    email,
-                    password: hash,
-                    salt, // Hash the password before sending
-                    role: role, 
-                    secretCode: code, // Use the secret code only for Administrator role
-                    // For other roles, it can be "0" or an empty string
-                }),
-            }
-        );
-        const data = await response.json();
+      const code = role === "Administrator" ? secretCode : "0";
+      // Hash the password and get the salt
+      // const { salt, hash } = await handlePasswordHashing(password);
 
-        if (!response.ok) {
-            toast({
-                variant: "destructive",
-                title: "Registration Failed",
-                description: data.error || "An error occurred during registration.",
-            });
-            setLoading(false);
-            return;
-        }
+      const id = `${role.toLowerCase()}-${uuidv4()}`;
+      const response = await fetch("http://localhost:5000/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          name,
+          email,
+          password, // ✅ send plain password
+          phone,
+          address,
+          role: role,
+          secretCode: code,
+        }),
+      });
 
+      const data = await response.json();
+      // console.log(
+      //   "Registration request:",
+      //   id,
+      //   name,
+      //   email,
+      //   role,
+      //   hash,
+      //   salt,
+      //   phone,
+      //   address,
+      //   code
+      // );
+      if (!response.ok) {
         toast({
-            title: "Registration Successful",
-            description: data.message || "Your account has been created.",
+          variant: "destructive",
+          title: "Registration Failed",
+          description: data.error || "An error occurred during registration.",
         });
-
-        navigate("/dashboard");
-    } catch (err) {
-        toast({
-            variant: "destructive",
-            title: "Network Error",
-            description: "Could not connect to the registration server.",
-        });
-    } finally {
         setLoading(false);
+        return;
+      }
+
+      toast({
+        title: "Registration Successful",
+        description: data.message || "Your account has been created.",
+      });
+
+      navigate("/dashboard");
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "Could not connect to the registration server.",
+      });
+    } finally {
+      setLoading(false);
     }
-};
+  };
 
   const handleRoleChange = (value: string) => {
     setRole(value as UserRole);
@@ -197,7 +237,14 @@ const Register = () => {
     e.preventDefault();
 
     // Form validation
-    if (!name || !email || !password || !confirmPassword) {
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !phone ||
+      !address
+    ) {
       toast({
         variant: "destructive",
         title: "Missing Fields",
@@ -244,14 +291,18 @@ const Register = () => {
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl text-center">Register</CardTitle>
               <CardDescription className="text-center">
-                Create a new account to access the birth registration system
+                Create a new account to access the birth registration system.
+                All fields marked with <span className="text-red-500">*</span>{" "}
+                are required.
               </CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">
+                    Full Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="name"
                     type="text"
@@ -263,7 +314,9 @@ const Register = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">
+                    Email <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -275,7 +328,9 @@ const Register = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">
+                    Password <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="password"
                     type="password"
@@ -290,7 +345,9 @@ const Register = () => {
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -302,7 +359,37 @@ const Register = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
+                  <Label htmlFor="confirmPassword">
+                    Phone Number <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="text"
+                    placeholder="98XXXXXXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">
+                    Address <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="Kathmandu, Nepal"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">
+                    Role <span className="text-red-500">*</span>
+                  </Label>
                   <Select
                     value={role}
                     onValueChange={handleRoleChange}

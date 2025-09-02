@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RefreshCw } from "lucide-react";
 import Image from "../images/Image";
 import {
   Select,
@@ -25,35 +24,23 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/contexts/AuthContext";
+import ReCAPTCHA from "react-google-recaptcha";
+
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState(1);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [captchaValue, setCaptchaValue] = useState<string>("");
-  const [userCaptcha, setUserCaptcha] = useState<string>("");
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [role, setRole] = useState<UserRole | "">("");
   const [secretCode, setSecretCode] = useState<string>("");
 
   const navigate = useNavigate();
-
-  // Generate a simple captcha
-  const generateCaptcha = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-    let captcha = "";
-    for (let i = 0; i < 6; i++) {
-      captcha += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptchaValue(captcha);
-  };
-
-  // Generate captcha on component mount
-  useState(() => {
-    generateCaptcha();
-  });
+  const { resetPassword } = useAuth();
 
   const handleVerifyEmail = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,114 +54,105 @@ const ForgotPassword = () => {
       return;
     }
 
-    if (userCaptcha !== captchaValue) {
+    if (!recaptchaToken) {
       toast({
         variant: "destructive",
-        title: "Invalid Captcha",
-        description: "The captcha you entered is incorrect. Please try again.",
+        title: "Captcha Required",
+        description: "Please verify that you are not a robot.",
       });
-      generateCaptcha();
-      setUserCaptcha("");
       return;
     }
 
     setLoading(true);
-
     setTimeout(() => {
       setLoading(false);
       setStep(2);
     }, 1500);
   };
 
- // Change the role state type
-  const { resetPassword } = useAuth();
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-// Updated handleResetPassword
-const handleResetPassword = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!newPassword || !confirmPassword) {
-    toast({
-      variant: "destructive",
-      title: "Missing Fields",
-      description: "Please enter both password fields.",
-    });
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    toast({
-      variant: "destructive",
-      title: "Password Mismatch",
-      description: "Passwords do not match.",
-    });
-    return;
-  }
-
-  if (newPassword.length < 8) {
-    toast({
-      variant: "destructive",
-      title: "Password Too Short",
-      description: "Password must be at least 8 characters long.",
-    });
-    return;
-  }
-
-  if (!agreedToTerms) {
-    toast({
-      variant: "destructive",
-      title: "Terms Agreement Required",
-      description: "Please agree to the terms and conditions.",
-    });
-    return;
-  }
-
-  if (role === "Administrator" && !secretCode) {
-    toast({
-      variant: "destructive",
-      title: "Secret Code Required",
-      description: "Administrator role requires a secret code.",
-    });
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // Call resetPassword from AuthContext
-    const success = await resetPassword(
-      email,
-      newPassword,
-      role as UserRole,
-      secretCode
-    );
-
-    setLoading(false);
-
-    if (success) {
-      toast({
-        title: "Password Reset Successful",
-        description:
-          "Your password has been reset successfully. You can now log in with your new password.",
-      });
-      navigate("/login");
-    } else {
+    if (!newPassword || !confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Password Reset Failed",
-        description: "Could not reset password. Please check your details.",
+        title: "Missing Fields",
+        description: "Please enter both password fields.",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        variant: "destructive",
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters long.",
+      });
+      return;
+    }
+
+    if (!agreedToTerms) {
+      toast({
+        variant: "destructive",
+        title: "Terms Agreement Required",
+        description: "Please agree to the terms and conditions.",
+      });
+      return;
+    }
+
+    if (role === "Administrator" && !secretCode) {
+      toast({
+        variant: "destructive",
+        title: "Secret Code Required",
+        description: "Administrator role requires a secret code.",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const success = await resetPassword(
+        email,
+        newPassword,
+        role as UserRole,
+        secretCode
+      );
+
+      setLoading(false);
+
+      if (success) {
+        toast({
+          title: "Password Reset Successful",
+          description:
+            "Your password has been reset successfully. You can now log in with your new password.",
+        });
+        navigate("/login");
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Password Reset Failed",
+          description: "Could not reset password. Please check your details.",
+        });
+      }
+    } catch (err) {
+      setLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Password Reset Error",
+        description: `An error occurred: ${err}. Please try again.`,
       });
     }
-  } catch (err) {
-    setLoading(false);
-    toast({
-      variant: "destructive",
-      title: "Password Reset Error",
-      description: `An error occurred: ${err}. Please try again.`,
-    });
-  }
-};
-
+  };
 
   return (
     <MainLayout>
@@ -213,29 +191,12 @@ const handleResetPassword = async (e: React.FormEvent) => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="captcha">Verification</Label>
-                    <div className="bg-gray-100 p-3 mb-2 text-center font-mono text-lg tracking-wider border border-gray-300 rounded-md">
-                      {captchaValue}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="captcha"
-                        type="text"
-                        placeholder="Enter captcha"
-                        value={userCaptcha}
-                        onChange={(e) => setUserCaptcha(e.target.value)}
-                        disabled={loading}
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={generateCaptcha}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <ReCAPTCHA
+                      sitekey={RECAPTCHA_SITE_KEY}
+                      onChange={(token: string | null) =>
+                        setRecaptchaToken(token)
+                      }
+                    />
                   </div>
 
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -265,13 +226,11 @@ const handleResetPassword = async (e: React.FormEvent) => {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      {role === "Administrator" ? (
-                        <>Administrator: Requires secret code</>
-                      ) : role === "Citizen" ? (
-                        <>Citizen: Register births and download certificates</>
-                      ) : (
-                        <>Guest: View public information</>
-                      )}
+                      {role === "Administrator"
+                        ? "Administrator: Requires secret code"
+                        : role === "Citizen"
+                        ? "Citizen: Register births and download certificates"
+                        : "Guest: View public information"}
                     </p>
                   </div>
 

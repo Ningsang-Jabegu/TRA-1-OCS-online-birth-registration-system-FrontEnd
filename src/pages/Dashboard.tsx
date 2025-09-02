@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -33,7 +31,7 @@ interface BirthRecord {
 }
 
 const Dashboard = () => {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [records, setRecords] = useState<BirthRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -199,7 +197,7 @@ interface RecordsListProps {
   userRole: UserRole;
 }
 
-const RecordsList = ({ records, loading, userRole }: RecordsListProps) => {
+const RecordsList = ({ records, loading }: RecordsListProps) => {
   if (loading) {
     return (
       <div className="space-y-4">

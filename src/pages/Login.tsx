@@ -30,14 +30,21 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const success = await login(email, password);
-
-      if (success) {
+      const res = await login(email, password);
+      if (res && res.success) {
+        const user = res.data || {};
+        const role = (user.ROLE || user.role || "").toString().toLowerCase();
+        console.log("Logged in user role:", role);
+        // console.log("Logged in user safe details:", user);
         toast({
           title: "Login Successful",
-          description: "Welcome back! You have successfully logged in.",
+          description: `Welcome back! ${user.NAME || user.name || ''}`,
         });
-        navigate("/dashboard");
+        if (role.includes("admin") || role === "administrator") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         toast({
           variant: "destructive",

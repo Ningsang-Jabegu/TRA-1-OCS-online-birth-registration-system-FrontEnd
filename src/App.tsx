@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import BirthRegistration from "./pages/BirthRegistration";
 import CertificateView from "./pages/CertificateView";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminRecordDetails from "./pages/AdminRecordDetails";
+import UserDetails from "./pages/UserDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -25,7 +27,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -71,6 +73,22 @@ const App = () => (
                   <AdminDashboard />
                 </ProtectedRoute>
               )} 
+            />
+            <Route
+              path="/admin/record/:id"
+              element={(
+                <ProtectedRoute adminOnly>
+                  <AdminRecordDetails />
+                </ProtectedRoute>
+              )}
+            />
+            <Route 
+              path="/users/:id"
+              element={(
+                <ProtectedRoute adminOnly>
+                  <UserDetails />
+                </ProtectedRoute>
+              )}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

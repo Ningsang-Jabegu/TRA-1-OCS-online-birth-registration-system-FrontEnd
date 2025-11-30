@@ -44,15 +44,19 @@ const ProfileUpdate = () => {
     setLoading(true);
     
     try {
-      // In a real app, this would call an API to update the profile
-      await updateUserProfile({ name, email, phone, address });
-      
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been updated successfully.",
-      });
-      
-      navigate("/dashboard");
+      // Call backend to update profile
+      const success = await updateUserProfile({ name, email, phone, address });
+      if (success) {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been updated successfully.",
+        });
+        navigate("/dashboard");
+      } else {
+        // updateUserProfile already shows a toast (No changes or error)
+        // Provide a friendly non-blocking message as well
+        toast({ title: "No changes made", description: "No profile fields were changed." });
+      }
     } catch (error) {
       console.error("Profile update error:", error);
       toast({

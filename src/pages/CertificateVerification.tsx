@@ -9,66 +9,107 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/components/ui/use-toast";
 import { ArrowLeft, Search, QrCode } from "lucide-react";
 import { DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Dialog } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/api";
 
 const CertificateVerification = () => {
   const [lastName, setLastName] = useState("");
   const [certificateNumber, setCertificateNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showVerification, setShowVerification] = useState(false);
+  
   const [showQRDialog, setShowQRDialog] = useState(false);
   
-  // Mock certificate data for verification
-  const mockCertificate = {
-    childName: "Arjun Kumar Sharma",
-    gender: "Male",
-    dateOfBirth: "2023-05-15",
-    placeOfBirth: "Hospital",
-    birthDistrict: "Kathmandu",
-    birthMunicipality: "Kathmandu Metropolitan City",
-    birthWard: "10",
-    fatherName: "Raj Kumar Sharma",
-    fatherCitizenshipNo: "12345-678",
-    motherName: "Sita Sharma",
-    motherCitizenshipNo: "87654-321",
-    permanentAddress: "Baluwatar, Kathmandu",
-    registrationDate: "2023-05-20",
-    certificateNo: "KTM-2023-12345",
-    issuedBy: "District Administration Office, Kathmandu",
-    issuedDate: "2023-05-25",
-  };
+  // record fetched from backend after successful verification
+  const [record, setRecord] = useState<any | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<null | 'verified' | 'pending' | 'rejected' | 'not-found'>(null);
+  const [rejectedReason, setRejectedReason] = useState<string | null>(null);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!lastName || !certificateNumber || !dateOfBirth) {
-      toast({
-        variant: "destructive",
-        title: "Missing Fields",
-        description: "Please fill in all fields to verify the certificate.",
-      });
+      toast({ variant: "destructive", title: "Missing Fields", description: "Please fill in all fields to verify the certificate." });
       return;
     }
-    
+
     setLoading(true);
-    
-    // In a real app, this would call an API to verify the certificate
-    setTimeout(() => {
-      if (lastName.toLowerCase().includes("sharma") && (certificateNumber === "KTM-2023-12345" || certificateNumber === "12345")) {
-        setShowVerification(true);
-        toast({
-          title: "Certificate Verified",
-          description: "The certificate has been found and verified.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Verification Failed",
-          description: "No certificate was found with the provided details. Please check your information and try again.",
-        });
+    setRecord(null);
+
+    try {
+      // Try direct lookup by certificate number / id first
+      let res = await apiFetch(`/api/birth-record/${encodeURIComponent(certificateNumber)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.record) {
+          const rec = data.record;
+          setRecord(rec);
+          // only treat as verified if status is explicit 'approved'
+          const st = (rec.status || '').toString().toLowerCase();
+          if (st === 'approved' || st === 'verified') {
+            setVerificationStatus('verified');
+            toast({ title: 'Certificate Verified', description: 'The certificate has been found and verified.' });
+            return;
+          } else if (st === 'rejected') {
+            setVerificationStatus('rejected');
+            setRejectedReason(rec.rejectReason || rec.REJECT_REASON || null);
+            toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'The certificate has been rejected and cannot be displayed.' });
+            return;
+          } else {
+            setVerificationStatus('pending');
+            toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'The certificate is not yet approved.' });
+            return;
+          }
+        }
       }
+
+      // If direct lookup failed, use server-side fuzzy search endpoint
+      res = await apiFetch(`/api/birth-record/search?name=${encodeURIComponent(lastName)}&dob=${encodeURIComponent(dateOfBirth)}`);
+      if (!res.ok) throw new Error('Could not perform fuzzy search');
+      const sdata = await res.json();
+      if (!sdata || !sdata.success || !Array.isArray(sdata.matches) || sdata.matches.length === 0) {
+        toast({ variant: "destructive", title: "Verification Failed", description: "No certificate was found with the provided details. Please check your information and try again." });
+      } else {
+        // pick highest score
+        const best = sdata.matches[0];
+        // best.record is a raw CSV row; fetch the normalized record to get status
+        const identifier = best.record?.CERTIFICATE_NO || best.record?.ID || best.record?.certificateNo;
+        if (!identifier) {
+          toast({ variant: 'destructive', title: 'Verification Failed', description: 'Match found but missing identifier.' });
+        } else {
+          const fetchRes = await apiFetch(`/api/birth-record/${encodeURIComponent(identifier)}`);
+          if (fetchRes.ok) {
+            const fetchData = await fetchRes.json();
+            if (fetchData && fetchData.success && fetchData.record) {
+              const rec = fetchData.record;
+              setRecord(rec);
+              const st = (rec.status || '').toString().toLowerCase();
+              if (st === 'approved' || st === 'verified') {
+                setVerificationStatus('verified');
+                toast({ title: 'Certificate Verified', description: `Match found (score ${(best.score||0).toFixed(2)})` });
+                return;
+              } else if (st === 'rejected') {
+                setVerificationStatus('rejected');
+                setRejectedReason(rec.rejectReason || rec.REJECT_REASON || null);
+                toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'A matching certificate was found but it has been rejected.' });
+                return;
+              } else {
+                setVerificationStatus('pending');
+                toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'A matching certificate was found but it is pending approval.' });
+                return;
+              }
+            }
+          }
+          // fallback if fetch failed
+          setRecord(best.record);
+          setVerificationStatus('not-found');
+          toast({ variant: 'destructive', title: 'Verification Failed', description: 'Unable to fetch full record details.' });
+        }
+      }
+    } catch (err: any) {
+      console.error('Verification error', err);
+      toast({ variant: 'destructive', title: 'Verification Error', description: err?.message || 'An error occurred while verifying.' });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -106,7 +147,7 @@ const CertificateVerification = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="certificateNumber">Certificate Number</Label>
+                  <Label htmlFor="certificateNumber">Registration Number</Label>
                   <Input
                     id="certificateNumber"
                     type="text"
@@ -119,7 +160,7 @@ const CertificateVerification = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Label htmlFor="dateOfBirth">Date of Birth (AD)</Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
@@ -158,55 +199,76 @@ const CertificateVerification = () => {
             </CardContent>
           </Card>
           
-          {showVerification && (
+          {verificationStatus === 'verified' && record && (
             <Card className="shadow-md border-green-200">
               <CardHeader className="space-y-1 bg-green-50 border-b border-green-100">
                 <CardTitle className="text-xl text-green-800">Certificate Verified</CardTitle>
                 <CardDescription className="text-green-700">
-                  The certificate for {mockCertificate.childName} has been found and verified
+                  The certificate for {record.childFullName || record.raw?.CHILD_FIRST_NAME || ''} has been found and verified
                 </CardDescription>
               </CardHeader>
               
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-gray-500">Certificate Number</p>
-                    <p className="text-base font-medium">{mockCertificate.certificateNo}</p>
+                    <p className="text-sm font-semibold text-gray-500">Registration Number</p>
+                    <p className="text-base font-medium">{record.certificateNo || record.CERTIFICATE_NO || record.ID || record.id}</p>
                   </div>
                   
                   <div>
                     <p className="text-sm font-semibold text-gray-500">Registration Date</p>
-                    <p className="text-base font-medium">{new Date(mockCertificate.registrationDate).toLocaleDateString()}</p>
+                    <p className="text-base font-medium">{record.registeredAt || record.REGISTERED_AT ? new Date(record.registeredAt || record.REGISTERED_AT).toLocaleDateString() : ''}</p>
                   </div>
                   
                   <div>
                     <p className="text-sm font-semibold text-gray-500">Child's Full Name</p>
-                    <p className="text-base font-medium">{mockCertificate.childName}</p>
+                    <p className="text-base font-medium">{record.childFullName || `${record.raw?.CHILD_FIRST_NAME || ''} ${record.raw?.CHILD_LAST_NAME || ''}`.trim()}</p>
                   </div>
                   
                   <div>
                     <p className="text-sm font-semibold text-gray-500">Date of Birth</p>
-                    <p className="text-base font-medium">{new Date(mockCertificate.dateOfBirth).toLocaleDateString()}</p>
+                    <p className="text-base font-medium">{(record.dateOfBirth || record.raw?.DATE_OF_BIRTH) ? new Date(record.dateOfBirth || record.raw?.DATE_OF_BIRTH).toLocaleDateString() : ''}</p>
                   </div>
                   
                   <div>
                     <p className="text-sm font-semibold text-gray-500">Father's Name</p>
-                    <p className="text-base font-medium">{mockCertificate.fatherName}</p>
+                    <p className="text-base font-medium">{record.fatherName || `${record.raw?.FATHER_FIRST_NAME || ''} ${record.raw?.FATHER_LAST_NAME || ''}`.trim()}</p>
                   </div>
                   
                   <div>
                     <p className="text-sm font-semibold text-gray-500">Mother's Name</p>
-                    <p className="text-base font-medium">{mockCertificate.motherName}</p>
+                    <p className="text-base font-medium">{record.motherName || `${record.raw?.MOTHER_FIRST_NAME || ''} ${record.raw?.MOTHER_LAST_NAME || ''}`.trim()}</p>
                   </div>
                 </div>
                 
                 <div className="mt-6 pt-4 border-t flex justify-center">
-                  <Link to={`/certificate/BC-2023-001`}>
+                  <Link to={`/certificate/${record.certificateNo || record.CERTIFICATE_NO || record.ID || record.id}`}>
                     <Button>
                       View Complete Certificate
                     </Button>
                   </Link>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {verificationStatus && verificationStatus !== 'verified' && (
+            <Card className="shadow-sm border-gray-200 bg-white">
+              <CardHeader>
+                <CardTitle className="text-lg">Certificate Not Verified</CardTitle>
+                <CardDescription>
+                  {verificationStatus === 'pending' && 'A matching certificate was found but it is still pending approval.'}
+                  {verificationStatus === 'rejected' && 'A matching certificate was found but it has been rejected.'}
+                  {verificationStatus === 'not-found' && 'No matching certificate details could be retrieved.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {verificationStatus === 'rejected' && rejectedReason && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500">Rejection Reason</p>
+                    <p className="text-base">{rejectedReason}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -225,7 +287,7 @@ const CertificateVerification = () => {
             <div className="bg-white p-4 rounded-lg border">
               <div className="w-64 h-64 relative bg-gray-100 flex items-center justify-center">
                 <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=CERTIFICATE:${mockCertificate.certificateNo}`} 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=CERTIFICATE:${encodeURIComponent(certificateNumber || record?.certificateNo || record?.CERTIFICATE_NO || '')}`} 
                   alt="QR Scanner Placeholder" 
                   className="w-48 h-48"
                 />

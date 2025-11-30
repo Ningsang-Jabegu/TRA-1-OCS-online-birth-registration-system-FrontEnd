@@ -1,345 +1,238 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { apiFetch } from "@/lib/api";
 import MainLayout from "@/components/layouts/MainLayout";
-import BilingualHeader from "@/components/BilingualHeader";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Download, ArrowLeft, Printer } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import Image from "../images/Image";
+import coatOfArms from "@/assets/photoUsed/Coat_Of_Arms_Logo.png";
 
-// Mock certificate data
 interface Certificate {
-  id: string;
-  childName: string;
-  gender: string;
-  dateOfBirth: string;
-  placeOfBirth: string;
-  birthDistrict: string;
-  birthMunicipality: string;
-  birthWard: string;
-  fatherName: string;
-  fatherCitizenshipNo: string;
-  motherName: string;
-  motherCitizenshipNo: string;
-  permanentAddress: string;
-  registrationDate: string;
-  certificateNo: string;
-  issuedBy: string;
-  issuedDate: string;
+  id?: string;
+  childName?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  placeOfBirth?: string;
+  certificateNo?: string;
+  registrationDate?: string;
 }
 
-const CertificateView = () => {
+export default function CertificateView() {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated } = useAuth();
   const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [loading, setLoading] = useState(true);
-  const certificateRef = useRef<HTMLDivElement>(null);
+  const recordRawRef = useRef<any>(null);
 
   useEffect(() => {
-    // Simulate fetching certificate data
-    setTimeout(() => {
-      // Mock data - in a real app, this would come from an API
-      const mockCertificate: Certificate = {
-        id: id || "BC-2023-001",
-        childName: "Arjun Kumar Sharma",
-        gender: "Male",
-        dateOfBirth: "2023-05-15",
-        placeOfBirth: "Hospital",
-        birthDistrict: "Kathmandu",
-        birthMunicipality: "Kathmandu Metropolitan City",
-        birthWard: "10",
-        fatherName: "Raj Kumar Sharma",
-        fatherCitizenshipNo: "12345-678",
-        motherName: "Sita Sharma",
-        motherCitizenshipNo: "87654-321",
-        permanentAddress: "Baluwatar, Kathmandu",
-        registrationDate: "2023-05-20",
-        certificateNo: "KTM-2023-12345",
-        issuedBy: "District Administration Office, Kathmandu",
-        issuedDate: "2023-05-25",
-      };
-
-      setCertificate(mockCertificate);
-      setLoading(false);
-    }, 1000);
+    let mounted = true;
+    const fetchRecord = async () => {
+      setLoading(true);
+      try {
+        if (!id) {
+          setLoading(false);
+          return;
+        }
+        const res = await apiFetch(`/api/birth-record/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.record) {
+            const r = data.record;
+            recordRawRef.current = r.raw || r;
+            const cert: Certificate = {
+              id: r.CERTIFICATE_NO || r.ID || id,
+              childName: `${r.CHILD_FIRST_NAME || r.childFirstName || ""} ${r.CHILD_LAST_NAME || r.childLastName || ""}`.trim(),
+              gender: r.GENDER || r.gender || "",
+              dateOfBirth: r.DATE_OF_BIRTH || r.dateOfBirth || "",
+              placeOfBirth: r.PLACE_OF_BIRTH || r.placeOfBirth || "",
+              certificateNo: r.CERTIFICATE_NO || r.certificateNo || r.ID,
+              registrationDate: r.REGISTERED_AT || r.registeredAt || "",
+            };
+            if (mounted) setCertificate(cert);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching certificate:", e);
+        toast({ variant: "destructive", title: "Fetch Error", description: "Could not load certificate data." });
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchRecord();
+    return () => { mounted = false; };
   }, [id]);
 
+  // --- OFFICIAL HTML BUILDER ---
+  const buildOfficialHtml = (cert: Certificate) => {
+    const rec = recordRawRef.current || {};
+    const esc = (v: any) => (v === null || v === undefined ? "" : String(v));
+    const regNo = esc(cert.certificateNo || rec.CERTIFICATE_NO || rec.ID || "");
+    const regDate = esc(cert.registrationDate || rec.REGISTERED_AT || "");
+    const fullName = esc(cert.childName || `${rec.CHILD_FIRST_NAME || ""} ${rec.CHILD_LAST_NAME || ""}`.trim());
+    const dob = esc(cert.dateOfBirth || rec.DATE_OF_BIRTH || rec.dateOfBirth || "");
+    const place = esc(cert.placeOfBirth || rec.PLACE_OF_BIRTH || rec.placeOfBirth || rec.BIRTH_PLACE || "");
+    const gender = esc(cert.gender || rec.GENDER || rec.gender || "");
+
+    // additional fields requested
+    const informantName = esc(rec.INFORMANT_NAME || rec.informantName || rec.INFORMANT || rec.INFORMANT_FULL_NAME || "");
+    const province = esc(rec.PROVINCE || rec.province || rec.PROVINCE_NAME || "");
+    const address = esc(rec.PERMANENT_ADDRESS || rec.permanentAddress || rec.ADDRESS || rec.address || "");
+    const fatherName = esc((rec.FATHER_FIRST_NAME || rec.fatherFirstName || rec.FATHER_NAME || "") + (rec.FATHER_LAST_NAME || rec.fatherLastName ? ` ${rec.FATHER_LAST_NAME || rec.fatherLastName}` : ""));
+    const fathersLastName = esc(rec.FATHER_LAST_NAME || rec.fatherLastName || "");
+    const fatherCitizenship = esc(rec.FATHER_CITIZENSHIP_NO || rec.fatherCitizenshipNo || rec.FATHER_NIN || rec.FATHER_CITIZENSHIP || "");
+    const motherName = esc((rec.MOTHER_FIRST_NAME || rec.motherFirstName || rec.MOTHER_NAME || "") + (rec.MOTHER_LAST_NAME || rec.motherLastName ? ` ${rec.MOTHER_LAST_NAME || rec.motherLastName}` : ""));
+    const motherCitizenship = esc(rec.MOTHER_CITIZENSHIP_NO || rec.motherCitizenshipNo || rec.MOTHER_NIN || rec.MOTHER_CITIZENSHIP || "");
+    const wardNo = esc(rec.WARD || rec.WARD_NO || rec.WARDNO || rec.WARD_NUMBER || rec.WARD_NO_NAME || "");
+    const municipality = esc(rec.MUNICIPALITY || rec.MUNICIPALITY_NAME || rec.municipality || rec.MUNICIPALITY_EN || "");
+    const district = esc(rec.DISTRICT || rec.district || rec.DISTRICT_NAME || rec.DISTRICT_EN || "");
+    const dobBS = esc(rec.DATE_OF_BIRTH_BS || rec.DOB_BS || rec.DOBBS || rec.dateOfBirthBS || "");
+    const dobAD = esc(rec.DATE_OF_BIRTH || rec.dateOfBirth || rec.DOB || "");
+    const placeOfBirth = esc(place);
+    const registrarName = "Dr. Binod Kumar Bhattarai";
+
+    return `
+    <div id="page" style="width:210mm; height:297mm; margin:0 auto; position:relative; background:#fff; box-shadow:0 0 0 1px #999 inset; box-sizing:border-box; padding:18mm; overflow:hidden; font-family:Inter, Arial, sans-serif;">
+      <img src="${coatOfArms}" alt="Emblem" style="position:absolute; left:50%; top:130mm; transform:translate(-50%,-50%); width:160mm; opacity:0.06; pointer-events:none; z-index:0;"/>
+      <div style="position:absolute; left:-20mm; top:120mm; width:260mm; transform:rotate(-22deg); text-align:center; font-weight:700; font-size:48px; color:#000; opacity:0.06; pointer-events:none; z-index:1;">
+        Birth Registration Certificate
+      </div>
+
+      <div style="position:relative; z-index:2; display:flex; align-items:flex-start; gap:12px;">
+        <div style="width:80px; flex:0 0 80px;">
+          <img src="${coatOfArms}" alt="Coat of arms" style="width:80px; height:auto; display:block;" />
+        </div>
+        <div style="flex:1; text-align:center;">
+          <div style="font-size:12px;">Schedule–12</div>
+          <div style="font-size:12px; margin-top:4px;">(Related with Rule 7)</div>
+          <div style="font-size:14px; font-weight:700; margin-top:8px;">Government of Nepal</div>
+          <div style="font-size:12px; margin-top:4px;">Ministry of Federal Affairs and Local Development</div>
+          <div style="font-size:14px; font-weight:700; margin-top:8px;">Office of Local Registrar</div>
+          <div style="font-size:12px; margin-top:2px;">${province}, ${district} District, ${municipality} Municipality</div>
+          <div style="margin-top:10px; font-size:20px; font-weight:800; text-decoration:underline;">जन्म दर्ता प्रमाणपत्र</div>
+          <div style="font-size:16px; font-weight:700; margin-top:4px;">(Birth Registration Certificate)</div>
+        </div>
+        <div style="width:80px; flex:0 0 80px;"></div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px;">
+        <div>Registration No.: <strong>${regNo}</strong></div>
+        <div>Date of Registration: <strong>${regDate}</strong></div>
+      </div>
+
+      <div style="margin-top:16px; font-size:13px; line-height:1.6; text-align:justify; padding:10px;">
+      This is to certify, as per the birth register maintained at this office and the information provided by <strong>${informantName || 'the informant'}</strong> in the information form of schedule 2, that Mr/Ms. <strong>${fullName}</strong>, son/daughter of <strong>Mr. ${fatherName || '—'}</strong> and <strong>Mrs. ${motherName || '—'} (${fathersLastName})</strong>, a resident of Ward No. <strong>${wardNo || '—'}</strong>, <strong>${municipality || '—'}</strong>, was born on <strong>${dobBS || dobAD || dob || '—'}</strong> (AD: ${dobAD || dob || '—'}) at <strong>${placeOfBirth || place}</strong>.
+      </div>
+
+      <div style="margin-top:12px; border:1px solid #000; padding:6px; box-sizing:border-box; font-size:13px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>पूरा नाम / Full Name : </strong>${fullName}</div>
+          </div>
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>जन्म मिति / Date of Birth : </strong>${dob}</div>
+          </div>
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>लिङ्ग / Sex : </strong>${gender}</div>
+          </div>
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>स्थायी ठेगाना / Permanent Address : </strong>${address}</div>
+          </div>
+        </div>
+        <div style="display:grid; margin-top:8px; margin-bottom:8px; grid-column:1 / 3; gap:6px;">
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>जन्मस्थान / Birth Place : </strong>${place}</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+         
+          <div style="border:1px dashed #000; padding:8px;">
+            <div style="font-weight:700; margin-bottom:6px;">बाबुको विवरण / Father's Details</div>
+            <div><strong>पूरा नाम / Full Name : </strong>${fatherName}</div>
+            <div style="margin-top:6px;"><strong>NIN / Citizenship No. :</strong> ${fatherCitizenship}</div>
+          </div>
+          
+          <div style="border:1px dashed #000; padding:8px;">
+            <div style="font-weight:700; margin-bottom:6px;">आमाको विवरण / Mother's Details</div>
+            <div><strong>पूरा नाम / Full Name : </strong>${motherName}</div>
+            <div style="margin-top:6px;"><strong>NIN / Citizenship No. :</strong> ${motherCitizenship}</div>
+          </div>
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>लिङ्ग / Sex : </strong>${gender}</div>
+          </div>
+          <div style="border:1px dashed #000; padding:8px;">
+            <div><strong>जन्मस्थान / Birth Place : </strong>${place}</div>
+          </div>
+        </div>
+        <div style="display:grid; margin-top:8px; margin-bottom:8px; grid-column:1 / 3; gap:6px;">
+          <div style="border:1px dashed #000; padding:8px;">
+            <div style="font-weight:700; margin-bottom:6px;">सूचकको विवरण / Informant's Details</div>
+            <div><strong>पूरा नाम / Full Name : </strong>${fatherName}</div>
+            <div style="margin-top:6px;"><strong>Relationship::</strong> Father</div>
+            <div style="margin-top:6px;"><strong>NIN / Citizenship No.:</strong> ${fatherCitizenship}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- signature row -->
+      <div style="display:flex; justify-content:space-between; margin-top:18px; align-items:flex-start; font-size:13px; z-index:2; position:relative;">
+        <div style="width:45%;">
+          <div style="font-weight:700; margin-bottom:12px;">Date, District and Citizenship No. if Citizenship Certificate is Issued to :</div>
+          <div style="margin-top:6px;"><strong>A. Father :</strong> ${fatherCitizenship}</div>
+          <div style="margin-top:6px;"><strong>B. Mother :</strong> ${motherCitizenship}</div>
+        </div>
+
+        <div style="width:45%; text-align:left;">
+          <div style="font-weight:700; margin-bottom:6px;">Local registrar's :</div>
+          <div style="border:1px solid #000; width:220px; height:60px; margin-bottom:6px;">
+            <div style="width:80px; flex:0 0 80px;">
+              <img src="${coatOfArms}" alt="Coat of arms" style="width:80px; height:auto; display:block; filter:grayscale(100%) contrast(110%);" />
+            </div>  
+          </div>
+          <div><strong>Signature :</strong></div>
+          <div style="margin-top:6px;"><strong>Name and surname:</strong> ${registrarName}</div>
+          <div style="margin-top:6px;"><strong>Date:</strong> ${regDate}</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:24px; font-size:11px; color:#555;">
+        This certificate is auto-generated by the Online Birth Registration System.
+      </div>
+    </div>`;
+  };
+
   const handleDownload = async () => {
-    if (!certificate || !certificateRef.current) return;
-
+    if (!certificate) return;
     try {
-      toast({
-        title: "Preparing Download",
-        description: "Your certificate is being prepared for download...",
-      });
-
-      const certificateElement = certificateRef.current;
-
-      // Create a temporary wrapper with watermark for PDF generation
-      const tempWrapper = document.createElement("div");
-      tempWrapper.style.position = "relative";
-      tempWrapper.style.width = "210mm"; // A4 width
-      tempWrapper.style.height = "297mm"; // A4 height
-      tempWrapper.style.padding = "20mm";
-      tempWrapper.style.backgroundColor = "white";
-
-      // Add watermark pattern - updated to be horizontal with reduced line height
-      const watermarkDiv = document.createElement("div");
-      watermarkDiv.style.position = "absolute";
-      watermarkDiv.style.top = "0";
-      watermarkDiv.style.left = "0";
-      watermarkDiv.style.width = "100%";
-      watermarkDiv.style.height = "100%";
-      watermarkDiv.style.display = "flex";
-      watermarkDiv.style.flexDirection = "column";
-      watermarkDiv.style.justifyContent = "space-around";
-      watermarkDiv.style.opacity = "0.4";
-      watermarkDiv.style.pointerEvents = "none";
-      watermarkDiv.style.zIndex = "1";
-
-      // Create horizontal rows of watermark text with reduced line height
-      for (let i = 0; i < 30; i++) {
-        // Adjusted number of rows
-        const watermarkRow = document.createElement("div");
-        watermarkRow.style.display = "flex";
-        watermarkRow.style.justifyContent = "flex-start";
-        watermarkRow.style.flexWrap = "nowrap";
-        watermarkRow.style.whiteSpace = "nowrap";
-        watermarkRow.style.lineHeight = "0.8rem"; // Reduced line height
-        watermarkRow.style.overflow = "hidden";
-
-        // Fill each row with repeated text
-        let rowContent = "";
-        for (let j = 0; j < 20; j++) {
-          rowContent += "जन्म दर्ता प्रमाणपत्र Birth Registration Certificate ";
-        }
-
-        watermarkRow.textContent = rowContent;
-        watermarkRow.style.fontSize = "8px";
-        watermarkRow.style.color = "#555";
-        watermarkDiv.appendChild(watermarkRow);
-      }
-
-      // Clone the certificate for PDF
-      const certificateClone = certificateElement.cloneNode(
-        true
-      ) as HTMLElement;
-      certificateClone.style.position = "relative";
-      certificateClone.style.zIndex = "2";
-
-      // Add to wrapper
-      tempWrapper.appendChild(watermarkDiv);
-      tempWrapper.appendChild(certificateClone);
-      document.body.appendChild(tempWrapper);
-
-      // Generate PDF
-      const canvas = await html2canvas(tempWrapper, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-
-      // Remove temporary elements
-      document.body.removeChild(tempWrapper);
-
+      const html = buildOfficialHtml(certificate);
+      const tmp = document.createElement("div");
+      tmp.style.position = "fixed";
+      tmp.style.left = "-9999px";
+      tmp.innerHTML = html;
+      document.body.appendChild(tmp);
+      const canvas = await html2canvas(tmp, { scale: 2, useCORS: true, backgroundColor: "#fff" });
+      document.body.removeChild(tmp);
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Birth Registration Certificate - ${certificate.childName}.pdf`);
-
-      toast({
-        title: "Download Complete",
-        description: "Your certificate has been downloaded successfully.",
-      });
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast({
-        variant: "destructive",
-        title: "Download Failed",
-        description:
-          "There was an error generating your certificate. Please try again.",
-      });
+      const w = pdf.internal.pageSize.getWidth();
+      const h = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, "PNG", 0, 0, w, h);
+      pdf.save(`Birth Certificate - ${certificate.childName || certificate.certificateNo}.pdf`);
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Download Failed", description: "Could not generate certificate PDF." });
     }
   };
 
-  const handlePrint = () => {
-    if (!certificateRef.current) return;
-
-    // Create print-specific content with watermark
-    const printContent = document.createElement("div");
-    printContent.className = "certificate-container";
-    printContent.style.width = "210mm";
-    printContent.style.height = "297mm";
-    printContent.style.margin = "0 auto";
-    printContent.style.position = "relative";
-    printContent.style.overflow = "hidden";
-    printContent.style.backgroundColor = "white";
-
-    // Add watermark for printing with horizontal layout
-    const watermarkDiv = document.createElement("div");
-    watermarkDiv.className = "certificate-watermark";
-
-    // Create horizontal rows of watermark text with reduced line height
-    for (let i = 0; i < 40; i++) {
-      // More rows for print
-      const watermarkRow = document.createElement("div");
-      watermarkRow.style.display = "flex";
-      watermarkRow.style.justifyContent = "flex-start";
-      watermarkRow.style.flexWrap = "nowrap";
-      watermarkRow.style.whiteSpace = "nowrap";
-      watermarkRow.style.lineHeight = "0.8rem"; // Reduced line height
-      watermarkRow.style.overflow = "hidden";
-
-      // Fill each row with repeated text
-      let rowContent = "";
-      for (let j = 0; j < 20; j++) {
-        rowContent += "जन्म दर्ता प्रमाणपत्र Birth Registration Certificate ";
-      }
-
-      watermarkRow.textContent = rowContent;
-      watermarkRow.style.fontSize = "8px";
-      watermarkRow.style.color = "#555";
-      watermarkDiv.appendChild(watermarkRow);
-    }
-
-    // Clone the certificate for printing
-    const certificateClone = certificateRef.current.cloneNode(
-      true
-    ) as HTMLElement;
-    certificateClone.style.position = "relative";
-    certificateClone.style.zIndex = "2";
-    certificateClone.style.padding = "20mm";
-    certificateClone.style.backgroundColor = "white";
-    certificateClone.style.boxSizing = "border-box";
-
-    // Remove any non-printable elements
-    const nonPrintableElements =
-      certificateClone.querySelectorAll(".print\\:hidden");
-    nonPrintableElements.forEach((el) => {
-      el.parentNode?.removeChild(el);
-    });
-
-    // Add to print container
-    printContent.appendChild(watermarkDiv);
-    printContent.appendChild(certificateClone);
-
-    // Add print-specific styles
-    const style = document.createElement("style");
-    style.textContent = `
-      @page {
-        size: A4;
-        margin: 0;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-        background: white !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        color-adjust: exact !important;
-      }
-      .certificate-container {
-        width: 210mm;
-        height: 297mm;
-        padding: 20mm;
-        box-sizing: border-box;
-        page-break-after: always;
-        background-color: white !important;
-        position: relative !important;
-        overflow: hidden !important;
-      }
-      .certificate-watermark {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        opacity: 0.4 !important;
-        z-index: 1 !important;
-        pointer-events: none !important;
-        transform: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-      }
-      .certificate-watermark div {
-        line-height: 0.8rem !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        font-size: 8px !important;
-        color: #555 !important;
-      }
-      .certificate-body {
-        border: 2px solid #ddd !important;
-        padding: 1.5rem !important;
-        background-color: white !important;
-        position: relative !important;
-        z-index: 2 !important;
-      }
-      .certificate-field {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        margin-bottom: 0.5rem !important;
-      }
-      .certificate-label {
-        font-weight: 600 !important;
-        text-align: right !important;
-      }
-      .certificate-value {
-        border-bottom: 1px dashed #666 !important;
-        text-align: left !important;
-      }
-      .signature-box {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-      }
-      .handwriting {
-        font-family: 'Dancing Script', cursive !important;
-        font-size: 1.25rem !important;
-      }
-    `;
-
-    // Open a new window and write the content
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(
-        "<!DOCTYPE html><html><head><title>Print Certificate</title>"
-      );
-      printWindow.document.write(
-        '<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600&display=swap" rel="stylesheet">'
-      );
-      printWindow.document.write("</head><body>");
-      printWindow.document.write(style.outerHTML);
-      printWindow.document.write(printContent.outerHTML);
-      printWindow.document.write("</body></html>");
-      printWindow.document.close();
-
-      // Wait for resources to load before printing
-      printWindow.onload = function () {
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.onafterprint = function () {
-            printWindow.close();
-          };
-        }, 1000); // Increased timeout for loading resources
-      };
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Print Failed",
-        description:
-          "Unable to open print window. Please check your browser settings.",
-      });
-    }
+  const handlePrint = async () => {
+    if (!certificate) return;
+    const html = buildOfficialHtml(certificate);
+    const win = window.open("", "_blank");
+    if (!win) return toast({ variant: "destructive", title: "Print Failed", description: "Popup blocked." });
+    win.document.open();
+    win.document.write(`<!doctype html><html><head><title>Print</title></head><body>${html}</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.print(); win.close(); }, 800);
   };
 
   return (
@@ -348,263 +241,35 @@ const CertificateView = () => {
         <div className="mb-6 flex items-center print:hidden">
           <Link to="/dashboard">
             <Button variant="outline" size="sm" className="mr-2">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
             </Button>
           </Link>
+
           {!loading && certificate && (
             <div className="ml-auto flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-              <Button size="sm" onClick={handleDownload}>
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/>Print</Button>
+              <Button size="sm" onClick={handleDownload}><Download className="mr-2 h-4 w-4"/>Download</Button>
             </div>
           )}
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-pulse space-y-6 w-full max-w-2xl">
-              <div className="h-10 bg-gray-200 rounded w-3/4 mx-auto"></div>
-              <div className="h-6 bg-gray-200 rounded w-1/2 mx-auto"></div>
-              <div className="space-y-3">
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-              </div>
-            </div>
-          </div>
+          <div className="flex justify-center items-center h-64">Loading...</div>
         ) : certificate ? (
-          <div className="max-w-4xl mx-auto">
-            <Card className="shadow-lg print:shadow-none print:border-none">
-              <CardContent className="p-8 print:p-0">
-                <div className="certificate-container" ref={certificateRef}>
-                  <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
-                      <Image
-                        name="logo"
-                        alt="Nepal Government Logo"
-                        className="h-24 w-auto"
-                      />
-                    </div>
-
-                    <div>
-                      <h1 className="text-2xl font-bold text-nepal-red mb-1">
-                        नेपाल सरकार
-                      </h1>
-                      <h2 className="text-xl font-semibold text-nepal-blue mb-1">
-                        Government of Nepal
-                      </h2>
-                      <h3 className="text-lg font-semibold text-nepal-red mb-1">
-                        गृह मन्त्रालय
-                      </h3>
-                      <h4 className="text-md font-medium text-nepal-blue mb-3">
-                        Ministry of Home Affairs
-                      </h4>
-                      <h3 className="text-xl font-bold text-nepal-red">
-                        जन्म दर्ता प्रमाणपत्र
-                      </h3>
-                      <h2 className="text-2xl font-bold text-nepal-blue mb-4">
-                        Birth Registration Certificate
-                      </h2>
-                    </div>
-
-                    <div className="mb-4 border-b pb-2">
-                      <p className="text-sm font-medium">
-                        Certificate No:{" "}
-                        <span className="font-bold">
-                          {certificate.certificateNo}
-                        </span>
-                      </p>
-                      <p className="text-sm font-medium">
-                        Registration Date:{" "}
-                        <span className="font-bold">
-                          {new Date(
-                            certificate.registrationDate
-                          ).toLocaleDateString()}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="certificate-body border-2 border-gray-300 rounded-lg p-6 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Child's Full Name:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.childName}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">Gender:</span>
-                        <span className="certificate-value">
-                          {certificate.gender}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Date of Birth:
-                        </span>
-                        <span className="certificate-value">
-                          {new Date(
-                            certificate.dateOfBirth
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Place of Birth:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.placeOfBirth}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Birth District:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.birthDistrict}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Municipality/VDC:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.birthMunicipality}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">Ward No:</span>
-                        <span className="certificate-value">
-                          {certificate.birthWard}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Permanent Address:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.permanentAddress}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Father's Name:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.fatherName}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Father's Citizenship No:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.fatherCitizenshipNo}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Mother's Name:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.motherName}
-                        </span>
-                      </div>
-
-                      <div className="certificate-field">
-                        <span className="certificate-label">
-                          Mother's Citizenship No:
-                        </span>
-                        <span className="certificate-value">
-                          {certificate.motherCitizenshipNo}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="my-8 text-center">
-                    <p className="text-sm text-gray-700 italic">
-                      This is to certify that the details mentioned above have
-                      been extracted from the birth register maintained by this
-                      office.
-                    </p>
-                  </div>
-
-                  <div className="certificate-footer flex justify-between mt-12 pt-6 border-t border-dashed border-gray-300">
-                    <div className="signature-box">
-                      <div className="border-b border-black min-w-[200px] h-16 flex items-end justify-center">
-                        <p className="handwriting text-xl mb-1">
-                          Raj Kumar Sharma
-                        </p>
-                      </div>
-                      <p className="text-sm mt-2">Applicant's Signature</p>
-                    </div>
-
-                    <div className="signature-box text-right">
-                      <div className="border-b border-black min-w-[200px] h-16 flex items-end justify-center">
-                        <Image
-                          name="authorized-signature"
-                          alt="Authorized Signature"
-                          className="h-24 w-auto -mb-5"
-                        />
-                      </div>
-                      <p className="text-sm mt-2">Authorized Signature</p>
-                      <p className="text-sm">{certificate.issuedBy}</p>
-                      <p className="text-sm">
-                        Issued Date:{" "}
-                        {new Date(certificate.issuedDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-12 border-t pt-6 text-center text-sm text-gray-600">
-                    <p>
-                      This certificate is automatically generated by the Online
-                      Birth Registration System. To verify the authenticity of
-                      this certificate, please visit our website or contact the
-                      concerned District Administration Office.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="max-w-5xl mx-auto bg-gray-100 p-6 rounded-lg">
+            {/* Live Preview */}
+            <div
+              className="certificate-preview"
+              dangerouslySetInnerHTML={{ __html: buildOfficialHtml(certificate) }}
+            />
           </div>
         ) : (
           <div className="text-center py-12">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-              Certificate Not Found
-            </h2>
-            <p className="text-gray-600 mb-6">
-              The certificate you are looking for could not be found or you may
-              not have permission to view it.
-            </p>
-            <Link to="/dashboard">
-              <Button>Return to Dashboard</Button>
-            </Link>
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Certificate Not Found</h2>
+            <Link to="/dashboard"><Button>Return to Dashboard</Button></Link>
           </div>
         )}
       </div>
     </MainLayout>
   );
-};
-
-export default CertificateView;
+}

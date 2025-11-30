@@ -27,7 +27,7 @@
     },
 
     /* Others */
-    "composite": true,
+    
   },
   "include": ["src"]
 }

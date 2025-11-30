@@ -35,6 +35,7 @@ import Image from "../images/Image";
 import { adminSecretCodes } from "../db/LocalDataBase";
 // import bcrypt from 'bcryptjs';
 import { handlePasswordHashing } from "../lib/utils";
+import { apiFetch } from "@/lib/api";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -127,7 +128,7 @@ const Register = () => {
       // const { salt, hash } = await handlePasswordHashing(password);
 
       const id = `${role.toLowerCase()}-${uuidv4()}`;
-      const response = await fetch("http://localhost:5000/api/register", {
+      const response = await apiFetch("/api/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

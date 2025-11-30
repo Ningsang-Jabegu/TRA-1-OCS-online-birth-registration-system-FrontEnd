@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/contexts/AuthContext";
+import { apiFetch } from '@/lib/api';
 import ReCAPTCHA from "react-google-recaptcha";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
@@ -72,13 +73,9 @@ const ForgotPassword = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    // basic validation
     if (!newPassword || !confirmPassword) {
-      toast({
-        variant: "destructive",
-        title: "Missing Fields",
-        description: "Please enter both password fields.",
-      });
+      toast({ variant: "destructive", title: "Missing Fields", description: "Please enter both password fields." });
       return;
     }
 
@@ -118,30 +115,53 @@ const ForgotPassword = () => {
       return;
     }
 
+    // verify that email belongs to the selected role
+    try {
+      const userRes = await apiFetch(`/api/user/${encodeURIComponent(email)}`);
+      if (!userRes.ok) throw new Error('Could not verify account');
+      const ud = await userRes.json().catch(() => null);
+      if (!ud || !ud.success || !ud.user) {
+        toast({ variant: 'destructive', title: 'Account Not Found', description: 'No account found for the provided email.' });
+        return;
+      }
+      const actualRole = ud.user.role || ud.user.ROLE || '';
+      if (role && actualRole && role !== actualRole) {
+        toast({ variant: 'destructive', title: 'Role Mismatch', description: 'Selected role does not match the account role.' });
+        return;
+      }
+    } catch (err) {
+      console.warn('Role verification failed', err);
+      toast({ variant: 'destructive', title: 'Verification Error', description: 'Could not verify account role. Please try again.' });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const success = await resetPassword(
-        email,
-        newPassword,
-        role as UserRole,
-        secretCode
-      );
+      const status = await resetPassword(email, newPassword, role as UserRole, secretCode);
+
+
+      // return {
+      //   success: false,
+      //   message: {
+      //     title: "Password Reset Failed",
+      //     description: "An error occurred. Please try again."
+      //   }
+      // };
 
       setLoading(false);
 
-      if (success) {
+      if (status.success) {
         toast({
-          title: "Password Reset Successful",
-          description:
-            "Your password has been reset successfully. You can now log in with your new password.",
+          title: status.message.title,
+          description: status.message.description || "Your password has been reset successfully. You can now log in with your new password.",
         });
         navigate("/login");
       } else {
         toast({
           variant: "destructive",
-          title: "Password Reset Failed",
-          description: "Could not reset password. Please check your details.",
+          title: status.message.title,
+          description: status.message.description || "Could not reset password. Please check your details.",
         });
       }
     } catch (err) {

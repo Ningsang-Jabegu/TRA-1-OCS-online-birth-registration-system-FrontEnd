@@ -52,6 +52,7 @@
     "glob": "^11.0.3",
     "input-otp": "^1.2.4",
     "jspdf": "^3.0.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.462.0",
     "nepali-date-converter": "^3.4.0",
     "nepali-datepicker-reactjs": "^1.1.9",

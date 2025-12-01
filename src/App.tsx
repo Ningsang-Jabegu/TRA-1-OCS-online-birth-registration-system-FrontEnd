@@ -12,6 +12,7 @@ import BirthRegistration from "./pages/BirthRegistration";
 import CertificateView from "./pages/CertificateView";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRecordDetails from "./pages/AdminRecordDetails";
+import RecordTimeline from "./pages/RecordTimeline";
 import UserDetails from "./pages/UserDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -79,6 +80,14 @@ const App = () => (
               element={(
                 <ProtectedRoute adminOnly>
                   <AdminRecordDetails />
+                </ProtectedRoute>
+              )}
+            />
+            <Route
+              path="/records/:id"
+              element={(
+                <ProtectedRoute>
+                  <RecordTimeline />
                 </ProtectedRoute>
               )}
             />

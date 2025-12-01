@@ -22,6 +22,7 @@ interface Certificate {
 export default function CertificateView() {
   const { id } = useParams<{ id: string }>();
   const [certificate, setCertificate] = useState<Certificate | null>(null);
+  const [registrarNameState, setRegistrarNameState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const recordRawRef = useRef<any>(null);
 
@@ -40,6 +41,25 @@ export default function CertificateView() {
           if (data && data.success && data.record) {
             const r = data.record;
             recordRawRef.current = r.raw || r;
+            // attempt to resolve registrar name if REGISTERED_BY looks like an id/email
+            (async () => {
+              try {
+                const regBy = r.REGISTERED_BY || r.registeredBy || r.registered_by || r.registeredById || r.registered_by_id || '';
+                if (regBy) {
+                  const userRes = await apiFetch(`/api/user/${encodeURIComponent(regBy)}`);
+                  if (userRes.ok) {
+                    const ud = await userRes.json().catch(() => null);
+                    if (ud && ud.success && ud.user) {
+                      const name = ud.user.NAME || ud.user.name || ud.user.NAME || '';
+                      if (name) setRegistrarNameState(name);
+                    }
+                  }
+                }
+              } catch (err) {
+                // ignore registrar name lookup failures
+                console.warn('Registrar lookup failed', err);
+              }
+            })();
             const cert: Certificate = {
               id: r.CERTIFICATE_NO || r.ID || id,
               childName: `${r.CHILD_FIRST_NAME || r.childFirstName || ""} ${r.CHILD_LAST_NAME || r.childLastName || ""}`.trim(),
@@ -68,7 +88,20 @@ export default function CertificateView() {
     const rec = recordRawRef.current || {};
     const esc = (v: any) => (v === null || v === undefined ? "" : String(v));
     const regNo = esc(cert.certificateNo || rec.CERTIFICATE_NO || rec.ID || "");
-    const regDate = esc(cert.registrationDate || rec.REGISTERED_AT || "");
+    const regDateRaw = esc(cert.registrationDate || rec.REGISTERED_AT || "");
+    const formatRegisteredAt = (s: string) => {
+      if (!s) return '';
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return s;
+      const year = d.getFullYear();
+      const month = d.toLocaleString('en-US', { month: 'long' });
+      const day = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return `${year} ${month} ${day} | ${hh}:${mm}:${ss}`;
+    };
+    const regDate = formatRegisteredAt(regDateRaw);
     const fullName = esc(cert.childName || `${rec.CHILD_FIRST_NAME || ""} ${rec.CHILD_LAST_NAME || ""}`.trim());
     const dob = esc(cert.dateOfBirth || rec.DATE_OF_BIRTH || rec.dateOfBirth || "");
     const place = esc(cert.placeOfBirth || rec.PLACE_OF_BIRTH || rec.placeOfBirth || rec.BIRTH_PLACE || "");
@@ -86,10 +119,13 @@ export default function CertificateView() {
     const wardNo = esc(rec.WARD || rec.WARD_NO || rec.WARDNO || rec.WARD_NUMBER || rec.WARD_NO_NAME || "");
     const municipality = esc(rec.MUNICIPALITY || rec.MUNICIPALITY_NAME || rec.municipality || rec.MUNICIPALITY_EN || "");
     const district = esc(rec.DISTRICT || rec.district || rec.DISTRICT_NAME || rec.DISTRICT_EN || "");
-    const dobBS = esc(rec.DATE_OF_BIRTH_BS || rec.DOB_BS || rec.DOBBS || rec.dateOfBirthBS || "");
+    // Prefer common CSV keys for Nepali (B.S.) date and Gregorian (A.D.) date
+    const dobBS = esc(
+      rec.NEPALI_DOB || rec.NEPALI_DATE || rec.DATE_OF_BIRTH_BS || rec.DOB_BS || rec.DOBBS || rec.dateOfBirthBS || ""
+    );
     const dobAD = esc(rec.DATE_OF_BIRTH || rec.dateOfBirth || rec.DOB || "");
     const placeOfBirth = esc(place);
-    const registrarName = "Dr. Binod Kumar Bhattarai";
+    const registrarName = esc(registrarNameState || rec.REGISTRAR_NAME || rec.REGISTERED_BY_NAME || rec.REGISTERED_BY || 'Local Registrar');
 
     return `
     <div id="page" style="width:210mm; height:297mm; margin:0 auto; position:relative; background:#fff; box-shadow:0 0 0 1px #999 inset; box-sizing:border-box; padding:18mm; overflow:hidden; font-family:Inter, Arial, sans-serif;">
@@ -115,7 +151,7 @@ export default function CertificateView() {
         <div style="width:80px; flex:0 0 80px;"></div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px;">
+        <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px;">
         <div>Registration No.: <strong>${regNo}</strong></div>
         <div>Date of Registration: <strong>${regDate}</strong></div>
       </div>
@@ -196,7 +232,13 @@ export default function CertificateView() {
       </div>
 
       <div style="text-align:center; margin-top:24px; font-size:11px; color:#555;">
-        This certificate is auto-generated by the Online Birth Registration System.
+        This certificate is auto-generated by the Online Birth Registration System. To verify the certificate, visit our system and use the Certificate Verification feature.
+      </div>
+      
+      <!-- QR CODE -->
+      <div style="position:absolute; right:18mm; bottom:18mm; z-index:3; text-align:center;">
+        <div style="font-size:10px; color:#333; margin-bottom:4px;">Scan to verify</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=CERTIFICATE:${encodeURIComponent(regNo)}" alt="QR Code" style="width:64px; height:64px; background:#fff; padding:4px; border:1px solid #ddd;" />
       </div>
     </div>`;
   };

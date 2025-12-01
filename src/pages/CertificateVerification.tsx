@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "@/components/layouts/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { ArrowLeft, Search, QrCode } from "lucide-react";
-import { DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Dialog } from "@/components/ui/dialog";
+import { DialogContent, DialogDescription, DialogHeader, DialogTitle, Dialog } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api";
 
 const CertificateVerification = () => {
@@ -18,6 +18,15 @@ const CertificateVerification = () => {
   const [loading, setLoading] = useState(false);
   
   const [showQRDialog, setShowQRDialog] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scannerSupported, setScannerSupported] = useState<boolean | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [noCameraFound, setNoCameraFound] = useState(false);
+  const scanAnimationRef = useRef<number | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   
   // record fetched from backend after successful verification
   const [record, setRecord] = useState<any | null>(null);
@@ -111,6 +120,234 @@ const CertificateVerification = () => {
       setLoading(false);
     }
   };
+
+  // Handle scanned QR code payload
+  const handleScanned = async (raw: string) => {
+    // raw expected: CERTIFICATE:<id> or just <id>
+    const parts = raw.split(':');
+    const maybeId = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+    const identifier = maybeId.trim();
+    if (!identifier) {
+      toast({ variant: 'destructive', title: 'Scan Failed', description: 'Could not parse QR code.' });
+      return;
+    }
+
+    setShowQRDialog(false);
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/birth-record/${encodeURIComponent(identifier)}`);
+      if (!res.ok) throw new Error('Not found');
+      const data = await res.json();
+      if (data && data.success && data.record) {
+        const rec = data.record;
+        setRecord(rec);
+        const st = (rec.status || '').toString().toLowerCase();
+        if (st === 'approved' || st === 'verified') {
+          setVerificationStatus('verified');
+          toast({ title: 'Certificate Verified', description: 'The certificate has been found and verified.' });
+        } else if (st === 'rejected') {
+          setVerificationStatus('rejected');
+          setRejectedReason(rec.rejectReason || rec.REJECT_REASON || null);
+          toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'The certificate has been rejected.' });
+        } else {
+          setVerificationStatus('pending');
+          toast({ variant: 'destructive', title: 'Certificate Not Verified', description: 'The certificate is not yet approved.' });
+        }
+      } else {
+        setVerificationStatus('not-found');
+        toast({ variant: 'destructive', title: 'Verification Failed', description: 'No certificate found.' });
+      }
+    } catch (err: any) {
+      console.error('Scan verification error', err);
+      toast({ variant: 'destructive', title: 'Verification Error', description: err?.message || 'An error occurred while verifying scanned QR.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Capture current video frame and try to decode using jsQR fallback
+  const capturePhotoAndDecode = async () => {
+    setScanError(null);
+    if (!videoRef.current) {
+      setScanError('No video available to capture.');
+      return;
+    }
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement('canvas');
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      setScanError('Unable to get canvas context.');
+      return;
+    }
+    try {
+      ctx.drawImage(video, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h);
+
+      // Try BarcodeDetector first if available
+      const BarcodeDetectorCls = (window as any).BarcodeDetector;
+      if (BarcodeDetectorCls) {
+        try {
+          const detector = new BarcodeDetectorCls({ formats: ['qr_code'] });
+          const results = await detector.detect(canvas);
+          if (results && results.length) {
+            const raw = results[0].rawValue || results[0].raw || '';
+            await handleScanned(raw);
+            return;
+          }
+        } catch (e) {
+          // fallthrough to jsQR
+        }
+      }
+
+      // dynamic import of jsQR as fallback
+      try {
+        const jsqrModule: any = await import(/* webpackChunkName: "jsqr" */ 'jsqr');
+        const jsQR = jsqrModule && jsqrModule.default ? jsqrModule.default : jsqrModule;
+        if (typeof jsQR === 'function') {
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+          if (code && code.data) {
+            await handleScanned(code.data);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('jsQR import/scan failed', e);
+      }
+
+      setScanError('No QR code detected in the captured frame. Try adjusting the camera or taking another photo.');
+      toast({ variant: 'destructive', title: 'No QR Found', description: 'No QR code detected in the captured photo.' });
+    } catch (err: any) {
+      console.error('Capture/Decode error', err);
+      setScanError(err?.message || 'Failed to capture or decode the image.');
+    }
+  };
+
+  // Start camera and scanning loop
+  const startScanner = async () => {
+    try {
+      setScannerSupported(null);
+      if (!(navigator && (navigator as any).mediaDevices && (navigator as any).mediaDevices.getUserMedia)) {
+        setScannerSupported(false);
+        setScanError('Camera API not available in this browser.');
+        return;
+      }
+      let stream: MediaStream | null = null;
+      try {
+        stream = await (navigator as any).mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch (err: any) {
+        // handle permission denied or no camera
+        console.error('getUserMedia error', err);
+        if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+          setPermissionDenied(true);
+          setScanError('Camera permission denied. Please allow camera access and try again.');
+        } else {
+          setNoCameraFound(true);
+          setScanError('No camera found or cannot access camera.');
+        }
+        setScannerSupported(false);
+        setScanning(false);
+        return;
+      }
+      if (!stream) {
+        setScannerSupported(false);
+        setScanError('Could not obtain camera stream.');
+        return;
+      }
+      const streamRef = stream;
+      mediaStreamRef.current = streamRef;
+      if (videoRef.current) {
+        videoRef.current.srcObject = streamRef;
+        await videoRef.current.play();
+      }
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      // check BarcodeDetector support but don't bail out — keep preview running
+      const BarcodeDetectorCls = (window as any).BarcodeDetector;
+      let detector: any = null;
+      if (!BarcodeDetectorCls) {
+        setScannerSupported(false);
+        // continue without a detector; user will still see preview and can capture manually
+      } else {
+        detector = new BarcodeDetectorCls({ formats: ['qr_code'] });
+        setScannerSupported(true);
+      }
+
+      // mark scanning/preview active (show video) once stream is playing
+      setScanning(true);
+      setPermissionDenied(false);
+      setNoCameraFound(false);
+      setScanError(null);
+
+      const canvas = canvasRef.current || document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const scanFrame = async () => {
+        try {
+          if (!videoRef.current || videoRef.current.readyState < 2) {
+            scanAnimationRef.current = requestAnimationFrame(scanFrame);
+            return;
+          }
+          canvas.width = videoRef.current.videoWidth;
+          canvas.height = videoRef.current.videoHeight;
+          if (ctx) ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+          if (detector) {
+            const results = await detector.detect(canvas);
+            if (results && results.length) {
+              // take first
+              const r = results[0];
+              const raw = r.rawValue || r.raw || '';
+              stopScanner();
+              await handleScanned(raw);
+              return;
+            }
+          }
+        } catch (e) {
+          // detection might fail on some frames; ignore
+        }
+        scanAnimationRef.current = requestAnimationFrame(scanFrame);
+      };
+
+      scanAnimationRef.current = requestAnimationFrame(scanFrame);
+    } catch (err) {
+      console.error('Scanner start failed', err);
+      setScannerSupported(false);
+    }
+  };
+
+  const stopScanner = () => {
+    setScanning(false);
+    if (scanAnimationRef.current) {
+      cancelAnimationFrame(scanAnimationRef.current);
+      scanAnimationRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      try { videoRef.current.pause(); videoRef.current.srcObject = null; } catch (e) { /* ignore */ }
+    }
+  };
+
+  useEffect(() => {
+    if (showQRDialog) {
+      // start scanner when dialog opens
+      startScanner();
+    } else {
+      stopScanner();
+    }
+    // cleanup on unmount
+    return () => { stopScanner(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showQRDialog]);
 
   return (
     <MainLayout>
@@ -283,28 +520,38 @@ const CertificateVerification = () => {
               Scan the QR code on your certificate to verify its authenticity
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center p-6">
-            <div className="bg-white p-4 rounded-lg border">
-              <div className="w-64 h-64 relative bg-gray-100 flex items-center justify-center">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=CERTIFICATE:${encodeURIComponent(certificateNumber || record?.certificateNo || record?.CERTIFICATE_NO || '')}`} 
-                  alt="QR Scanner Placeholder" 
-                  className="w-48 h-48"
-                />
+          <div className="flex items-center justify-center p-2">
+            <div className="bg-white p-2 rounded-lg border">
+              {scannerSupported === false && (
+                <div className="w-64 h-64 flex items-center justify-center p-4">
+                  <div className="text-sm text-gray-600">Camera scanning not supported in this browser. You can verify manually by entering the registration number.</div>
+                </div>
+              )}
+              <div className="w-64 h-64 relative bg-black flex items-center justify-center">
+                <video ref={videoRef} className="w-full h-full object-cover" playsInline muted style={{ display: scanning ? 'block' : 'none' }} />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+                {scanning && (
+                  <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">Scanning…</div>
+                )}
               </div>
-              <p className="text-center mt-4 text-sm text-gray-500">
-                Position a QR code from a certificate in front of your camera
-              </p>
+              <p className="text-center mt-2 text-sm text-gray-500">Point your camera at the QR code on the certificate to scan and verify.</p>
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <Button variant="outline" onClick={() => setShowQRDialog(false)}>Close</Button>
+                {scannerSupported === null && <Button onClick={() => startScanner()}>Start Scanner</Button>}
+                {scannerSupported === false && (
+                  <Button onClick={() => { setShowQRDialog(false); toast({ title: 'Manual Verify', description: 'Use the form to enter details and verify.' }); }}>Use Manual Verify</Button>
+                )}
+                {scanning && (
+                  <Button onClick={() => capturePhotoAndDecode()}>Capture Photo</Button>
+                )}
+              </div>
+              <div className="mt-3 text-center">
+                {scanError && <p className="text-sm text-red-600">{scanError}</p>}
+                {permissionDenied && <p className="text-sm text-yellow-700">Camera permission denied. Please allow camera access in your browser settings.</p>}
+                {noCameraFound && <p className="text-sm text-yellow-700">No camera detected. Try a different device.</p>}
+              </div>
             </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row sm:justify-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowQRDialog(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </MainLayout>

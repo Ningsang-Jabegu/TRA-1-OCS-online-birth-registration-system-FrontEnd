@@ -156,7 +156,18 @@ const ForgotPassword = () => {
           title: status.message.title,
           description: status.message.description || "Your password has been reset successfully. You can now log in with your new password.",
         });
-        navigate("/login");
+        // Prefer SPA navigation, but fall back to full redirect if route fails
+        try {
+          navigate("/login");
+          // ensure we actually land on the login page (fallback for edge cases)
+          setTimeout(() => {
+            if (window.location.pathname !== '/login') {
+              window.location.assign('/login');
+            }
+          }, 250);
+        } catch (err) {
+          window.location.assign('/login');
+        }
       } else {
         toast({
           variant: "destructive",

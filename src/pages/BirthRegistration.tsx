@@ -38,6 +38,28 @@ function calculateAge(dob: Date | null): number | null {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 }
 
+function calculateAgeBreakdown(dob: Date | null): string | null {
+  if (!dob) return null;
+  const now = new Date();
+  // If dob is in the future, return zeros
+  if (dob.getTime() > now.getTime()) return '0 years 0 months 0 days';
+
+  // total days difference
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const totalDays = Math.floor((now.getTime() - dob.getTime()) / msPerDay);
+
+  const years = Math.floor(totalDays / 365);
+  let rem = totalDays - years * 365;
+  const months = Math.floor(rem / 30); // assume 30 days per month
+  const days = rem - months * 30;
+
+  const yLabel = `${years} year${years === 1 ? '' : 's'}`;
+  const mLabel = `${months} month${months === 1 ? '' : 's'}`;
+  const dLabel = `${days} day${days === 1 ? '' : 's'}`;
+
+  return `${yLabel} ${mLabel} ${dLabel}`;
+}
+
 const BirthRegistration = () => {
   // Province, District, Municipality, Ward state
   const [province, setProvince] = useState("");
@@ -374,10 +396,10 @@ const BirthRegistration = () => {
                         </div>
                       </div>
 
-                      {/* Age display */}
+                      {/* Age display: show breakdown in years, months, days (30-day months) */}
                       {dateOfBirth && (
                         <p className="text-xs text-gray-500">
-                          {calculateAge(dateOfBirth)} years old
+                          {calculateAgeBreakdown(dateOfBirth)}
                         </p>
                       )}
                     </div>
